@@ -1,0 +1,200 @@
+#mainModuleContainer {
+    width: 99vw; /* 100 causes small scroll bar*/
+    min-height: 100%;
+
+    /* Makes font the same across OS and Browswer */
+    font-size: small;
+    /* font-family: 'Times New Roman', Times, serif; */
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#filePrompt {
+    visibility : hidden;
+    text-align: center;
+}
+
+.mainColumn {
+    float: left;
+    height: 89vh; /* prevent scroll bar for whole page */
+    padding: .5%;
+    margin-top: 0vh;
+    border: 1px solid black;
+    box-shadow:  inset 0 0 8px #000000;
+    overflow: scroll;
+}
+
+#disassembleDiv {
+    width: 42%; /* only seem to get 95% total to use */
+}
+
+#dagDiv {
+    width: 55%; /* only seem to get 95% total to use */
+}
+
+#moduleSettings {
+    position: fixed;
+    width: 100%;
+    top: 0;
+    height: 6vh;
+}
+
+#moduleData {
+    margin-top: 6vh; /* same as moduleSettings */
+}
+
+#settings {
+    width: 98.3%; /* Seems to be some implicit margin on left side */
+    padding-top: 5px;
+    height: 90%;
+    background: #555;
+    color: #f1f1f1;
+}
+
+#settingsLeft {
+    padding-left: 10px;
+    text-align: left;
+}
+
+#settingsRight {
+    padding-right: 10px;
+    text-align: right;
+}
+
+.preFunction {
+    border-left: 2px solid green;
+    border-right: 2px solid green;
+    border-bottom: 2px solid green;
+    padding: 5px;
+}
+
+.label-preFunction {
+    background-color: green;
+}
+
+.function {
+    border-left: 2px solid red;
+    border-right: 2px solid red;
+    border-bottom: 2px solid red;
+    padding: 5px;
+}
+
+.label-function {
+    background-color: red;
+}
+
+.label {
+    border-left: 2px solid blue;
+    border-right: 2px solid blue;
+    border-bottom: 2px solid blue;
+    padding: 5px;
+}
+
+.label-label {
+    background-color: blue;
+}
+
+.blockType {
+    color: blue;
+    font-size: 75%;
+    vertical-align: super;
+}
+
+.instruction {
+    margin: 2px;
+    background-color: white;
+}
+
+.count {
+    color : darkorange;
+}
+
+.operation {
+    color : black;
+}
+
+.literal {
+    color : orangered;
+}
+
+.enumerant {
+    color : orangered;
+}
+
+.id {
+    color : darkgreen;
+}
+
+a.id:hover, a.operation:hover {
+    color : blue;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Override ID */
+.result {
+    color : darkgreen;
+}
+
+.type {
+    color : darkgreen;
+}
+
+.tooltipKey {
+    color : blue;
+}
+
+.tooltipValue {
+    color : darkred;
+}
+
+.row {
+    display: flex; /* equal height of the children */
+}
+
+.col {
+    flex: 1; /* additionally, equal width */
+}
+
+/* To use custom "new file load" button in settings */
+.hide {
+    display: none;
+}
+
+.customButton {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 14px;
+    color: #333333;
+    background-color: white;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.label-toggle {
+    display: block;
+    cursor: pointer;
+    border: 1px solid black;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    /* need padding to read between bars */
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.label-toggle:hover {
+    background: #2c2c2c;
+}
+
+/* Hides content */
+.collapsible-content {
+    max-height: 0px;
+    overflow: hidden;
+}
+
+.toggle:checked + .label-toggle + .collapsible-content {
+    /* Since divs can be greater than 100% of 100vh */
+    max-height: inherit;
+}

@@ -1,0 +1,4 @@
+.vscode/
+tests/ci/
+tests/fix/
+tests/*.json

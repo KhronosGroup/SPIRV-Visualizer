@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>SPIR-V Visualizer</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script>
+        // Debug mode auto loads shader to bypass manual input each reload
+        const DEBUG=false; // toggle
+        const DEBUG_FILE="tests/samples/switch.spv";
+        // Leave so variable is declared
+        var TEST_SUITE=false;
+    </script>
+  </head>
+
+  <body onload="loadSpirvJson()">
+<!-- For Testing Only - at top to load first -->
+<!--
+    <script>TEST_SUITE=true;</script>
+    <div id="qunit"></div>
+    <div id="qunit-fixture"></div>
+    <link rel="stylesheet" href="lib/qunit/qunit-2.13.0.css">
+    <script src="lib/qunit/qunit-2.13.0.min.js"></script>
+    <script src="tests/tests.js"></script>
+-->
+
+    <div id="mainModuleContainer">
+        <div id="moduleSettings">
+            <div id="settings" class="row">
+                <div id="settingsLeft" class="col">
+                    <input type="checkbox" id="largerText" name="largerText">
+                    <label for="largerText">Larger Text</label>
+                    <br>
+                    <input type="checkbox" id="opNames" name="opNames">
+                    <label for="opNames">Use OpNames</label>
+                    <br>
+                </div>
+                <div id="settingsRight" class="col">
+                    <input type="file" name="fileSelectorTop" id="fileSelectorTop" class="hide"/>
+                    <label for="fileSelectorTop" class="customButton">Load new SPIR-V file</label>
+                    <div id="fileSelectName"></div>
+                </div>
+            </div>
+        </div>
+        <div id="moduleData">
+            <div class="mainColumn" id="disassembleDiv"></div>
+            <div class="mainColumn" id="dagDiv">
+                <svg id="dagSvg"></svg>
+
+                <!-- On Load instructions - Will be removed from DOM later -->
+                <div id="preLoad">
+                    Loading and parsing SPIR-V Header files, should be quick!
+                </div>
+                <div id="filePrompt">
+                    <h1>SPIR-V Visualizer</h1>
+                    Based on SPIR-V grammar <span id="spirvVersion"></span>
+                    <h2>Select SPIR-V binary file to load</h2>
+                    <input type="file" id="fileSelector">
+                    <br><br><hr>
+                    <h1>How to use</h1>
+                    <img src="doc/instructions_0.png" alt="instructions_0.png">
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <script src="lib/jquery-3.5.1.min.js"></script>
+  <script src="lib/d3.v5.min.js"></script>
+  <script src="lib/d3-dag.min.js"></script>
+
+  <script src="utils.js"></script>
+  <script src="input.js"></script>
+  <script src="spirv.js"></script>
+  <script src="main.js"></script>
+  </body>
+</html>
