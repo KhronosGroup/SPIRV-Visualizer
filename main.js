@@ -260,6 +260,8 @@ function parseBinaryStream(binary) {
             // When any operand_kinds item in the grammar has a set of parameters
             var parameterOperandInfo = undefined;
             var parameterOperandIndex = 0;
+            // Some instructions will have multiple parameter operands and need to iterate through each
+            var parameterOperandQueue = [];
 
             // These need to be set outside the while loop for optionalArray to just reuse
             // the last type of operand for the rest of the instructions
@@ -292,6 +294,13 @@ function parseBinaryStream(binary) {
                 } else if (parameterOperandInfo) {
                     operandInfo = parameterOperandInfo[parameterOperandIndex];
                     parameterOperandIndex++;
+
+                    // if multiple sets of parameters, resets for next set
+                    if (parameterOperandInfo.length == parameterOperandIndex) {
+                        // will be undefined if empty, which is find as should exit while loop next
+                        parameterOperandInfo = parameterOperandQueue.shift();
+                        parameterOperandIndex = 0;
+                    }
                 } else {
                     // Normal
                     operandInfo = instructionInfo.operands[grammarOperandIndex];
@@ -499,22 +508,52 @@ function parseBinaryStream(binary) {
 
                     if (operandInfo.enumerants) {
                         var enumerantsLength = operandInfo.enumerants.length;
-                        // Expect a single value, not flags
+                        var bitEnumString = "";
+                        var foundValue = false;
+
                         for (let i = 0; i < enumerantsLength; i++) {
                             var value = operandInfo.enumerants[i].value;
                             if (operandInfo.category == "BitEnum") {
                                 value = parseInt(operandInfo.enumerants[i].value, 16);
-                            }
+                                // Will need to test each item if BitEnum
+                                // need to catch case where value and operand are both zero
+                                if (((value & operand) != 0) || (value == operand)){
+                                    // know at least one value found
+                                    if (foundValue == false) {
+                                        bitEnumString = operandInfo.enumerants[i].enumerant;
+                                    } else {
+                                        bitEnumString += " | " + operandInfo.enumerants[i].enumerant;
+                                    }
 
-                            if (value == operand) {
+                                    if (operandInfo.enumerants[i].parameters) {
+                                        parameterOperandQueue.push(operandInfo.enumerants[i].parameters);
+                                    }
+                                    foundValue = true;
+                                }
+                            } else if (value == operand) {
+                                // Expect a single value, not flags if not BitEnum
                                 instructionString += " <span class=\"operand enumerant\">" + operandInfo.enumerants[i].enumerant + "</span>";
-                                operandOffset++;
-                                operandNameList.push(operandName);
 
                                 if (operandInfo.enumerants[i].parameters) {
-                                    parameterOperandInfo = operandInfo.enumerants[i].parameters;
+                                    parameterOperandQueue.push(operandInfo.enumerants[i].parameters);
                                 }
+                                foundValue = true;
                                 break;
+                            }
+                        }
+
+                        if (foundValue == true) {
+                            operandOffset++;
+                            operandNameList.push(operandName);
+
+                            // If any parameter was found, enqueue it right away
+                            if (parameterOperandQueue.length != 0) {
+                                parameterOperandInfo = parameterOperandQueue.shift();
+                            }
+
+                            // Need to formulate string after finding all enums as well as counter operand
+                            if (operandInfo.category == "BitEnum") {
+                                instructionString += " <span class=\"operand enumerant\">" + bitEnumString + "</span>";
                             }
                         }
                     }
