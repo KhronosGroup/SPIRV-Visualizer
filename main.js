@@ -357,10 +357,12 @@ function parseBinaryStream(binary) {
 
                 } else if (kind == "LiteralString") {
                     instructionString += " <span class=\"operand literal\">\""
-                    instructionString += getLiteralString(module.slice(i + operandOffset, i + instructionLength));
+                    var literalString = getLiteralString(module.slice(i + operandOffset, i + instructionLength));
+                    instructionString += literalString;
                     instructionString += "\"</span>"
                     operandNameList.push(operandName);
-                    break; // always at end
+                    // Add 1 for the null terminator
+                    operandOffset += Math.ceil((literalString.length + 1) / 4);
 
                 } else if (kind == "LiteralInteger") {
                     // single word literal
