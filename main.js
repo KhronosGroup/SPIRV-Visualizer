@@ -407,13 +407,21 @@ function parseBinaryStream(binary) {
                         // Result Type must be a scalar integer type or floating-point type.
                         var contextInstruction = instructionMap.get(resultToInstructionMap.get(module[i + 1]));
                         if (contextInstruction.opcode == spirvEnum.Op.OpTypeInt) {
-                            // 4 instrutions is a normal 32 bit width, extra instruction length is another byte
+                            var signedness = module[contextInstruction.moduleOffset + 3];
+                            if (signedness == 1) {
+                                // JS way to bring uint32 to int32
+                                operandValue = operandValue >> 0;
+                            }
+                            // 4 instructions is a normal 32 bit width, extra instruction length is another byte
                             width = instructionLength - 3;
                             assert(width <= 2, "parsing " + 32 * width + " bit int is not supported");
                             if (width == 2) {
                                 // 64-bit Int
+                                // only the high bit are converted to singed
+                                var operandValueLow = module[i + 3];
+                                var operandValueHigh = (signedness == 1) ? module[i + 4] >> 0 : module[i + 4];
                                 // use toString to get rid of suffix from types of BigInt
-                                operandValue = ((BigInt(module[i+4]) << BigInt(32)) + BigInt(module[i+3])).toString();
+                                operandValue = ((BigInt(operandValueHigh) << BigInt(32)) + BigInt(operandValueLow)).toString();
                             }
                         } else if (contextInstruction.opcode == spirvEnum.Op.OpTypeFloat) {
                             // 4 instrutions is a normal 32 bit width, extra instruction length is another byte
@@ -586,6 +594,7 @@ function parseBinaryStream(binary) {
 
         // After parsing instruction insertions/updates
         instructionMap.set(instructionCount, {
+            "moduleOffset" : i,
             "block" : currentBlock.start,
             "function" : currentFunction.start,
             "opcode" : opcode,
@@ -703,7 +712,10 @@ function parseBinaryStream(binary) {
 
     // Nothing has failed
     const performanceEnd = performance.now();
-    console.log("Binary parsed in " + ((performanceEnd - performanceStart) / 1000).toFixed(3) + " seconds");
+    document.getElementById("fileSelectName").innerHTML +=
+        "<br><span style=\"font-size : smaller\">" +
+        "binary parsed in <span style=\"color : deepskyblue\">" + ((performanceEnd - performanceStart) / 1000).toFixed(3) + "</span> seconds" +
+        "</span>";
     return true;
 }
 

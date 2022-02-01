@@ -1,4 +1,4 @@
-// Copyright (c) 2021 The Khronos Group Inc.
+// Copyright (c) 2021-2022 The Khronos Group Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ function fileSelected(data, filename) {
     if (filename == undefined) {
         filename = "unknown";
     }
-    document.getElementById("fileSelectName").innerText = "Loaded: " + filename;
+    document.getElementById("fileSelectName").innerHTML= "Loaded: <span style=\"color : navajowhite\">" + filename + "</span>";
 
     // Toggle div to be displayed
     // remove the rest as currently not support reloading spir-v without page refresh
