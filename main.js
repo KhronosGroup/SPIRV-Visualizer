@@ -712,7 +712,10 @@ function parseBinaryStream(binary) {
 
     // Nothing has failed
     const performanceEnd = performance.now();
-    console.log("Binary parsed in " + ((performanceEnd - performanceStart) / 1000).toFixed(3) + " seconds");
+    document.getElementById("fileSelectName").innerHTML +=
+        "<br><span style=\"font-size : smaller\">" +
+        "binary parsed in <span style=\"color : deepskyblue\">" + ((performanceEnd - performanceStart) / 1000).toFixed(3) + "</span> seconds" +
+        "</span>";
     return true;
 }
 
