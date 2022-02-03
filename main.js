@@ -1,4 +1,4 @@
-// Copyright (c) 2021 The Khronos Group Inc.
+// Copyright (c) 2021-2022 The Khronos Group Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -851,6 +851,12 @@ function fillDagBackward(instruction, operand) {
         // use all parents of instruction
         parents = instructionMap.get(instruction).parentInstructions;
     }
+
+    // D3 is expecting an array, not a set, but have to make sure no duplicates
+    // otherwise it will form dead nodes. This is a central spot to de-dup the array
+    parents = parents.filter(function(item, pos) {
+        return parents.indexOf(item) == pos;
+    })
 
     fillDagData(instruction, parents);
     for (let i = 0; i < parents.length; i++) {
