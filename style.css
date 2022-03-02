@@ -50,9 +50,17 @@
     color: #f1f1f1;
 }
 
+#largerTextDiv { grid-area: largerTextArea; }
+#opNamesDiv { grid-area: opNamesArea; }
+#insertConstantsDiv { grid-area: insertConstantsArea; }
+
 #settingsLeft {
     padding-left: 10px;
     text-align: left;
+
+    display: grid;
+    grid-template-areas:
+    'largerTextArea opNamesArea insertConstantsArea';
 }
 
 #settingsRight {
@@ -137,6 +145,10 @@ a.id:hover, a.operation:hover {
 
 .type {
     color : darkgreen;
+}
+
+.insertConstant {
+    color : darkmagenta;
 }
 
 .tooltipKey {

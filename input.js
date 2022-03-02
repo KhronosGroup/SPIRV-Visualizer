@@ -132,6 +132,8 @@ $(document).ready(function(){
         // dispatches each type of option to be handled
         if (box == "opNames") {
             useOpNames(checked);
+        } else if (box == "insertConstants") {
+            insertConstants(checked);
         } else if (box == "largerText") {
             // Doesn't effect the settings text size
             document.getElementById("moduleData").style.fontSize = (checked) ? "medium" : "small";
