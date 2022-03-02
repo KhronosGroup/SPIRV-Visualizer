@@ -28,6 +28,8 @@ var branchMap = new Map();
 var idConsumers = [];
 // Mapping of all results to an opName string
 var opNameMap = new Map();
+// Mapping of what to display if inserting constant values
+var constantValues = new Map();
 // Mapping of resultId to extended instructions literal name
 var resultToExtInstructionName = new Map();
 
@@ -40,6 +42,7 @@ function resetTracking() {
     branchMap = new Map();
     idConsumers = [];
     opNameMap = new Map();
+    constantValues = new Map();
     resultToExtInstructionName = new Map();
 }
 
@@ -446,6 +449,12 @@ function parseBinaryStream(binary) {
                         assert(false, "unknown opcode is using LiteralContextDependentNumber grammar, chance things might break now")
                     }
 
+                    var insertValue = operandValue;
+                    if (opcode == spirvEnum.Op.OpSpecConstant) {
+                        insertValue = "spec(" + insertValue + ")";
+                    }
+                    constantValues.set(module[i + 2], insertValue);
+
                     instructionString += " <span class=\"operand literal\">" + operandValue + "</span>";
                     operandNameList.push(operandName);
                     operandOffset += width;
@@ -579,18 +588,46 @@ function parseBinaryStream(binary) {
         }
 
         // Handles all decorations and names
-        {
-            if (opcode == spirvEnum.Op.OpName) {
-                var name = getLiteralString(module.slice(i + 2, i + instructionLength));
-                // strings can be empty according to specs definition of Literals
-                // to prevent looking like a bug, replace with some more visual
-                if (name == "") {
-                    name = "[empty string]"
-                }
-
-                opNameMap.set(module[i + 1], name);
+        if (opcode == spirvEnum.Op.OpName) {
+            var name = getLiteralString(module.slice(i + 2, i + instructionLength));
+            // strings can be empty according to specs definition of Literals
+            // to prevent looking like a bug, replace with some more visual
+            if (name == "") {
+                name = "[empty string]"
             }
+
+            opNameMap.set(module[i + 1], name);
         }
+
+        // Take Constant-Creation class opcodes and save const value to be displayed
+        switch (opcode) {
+            case spirvEnum.Op.OpConstantTrue:
+                constantValues.set(module[i + 2], "True");
+                break;
+            case spirvEnum.Op.OpConstantFalse:
+                constantValues.set(module[i + 2], "False");
+                break;
+            case spirvEnum.Op.OpConstantNull:
+                constantValues.set(module[i + 2], "Null");
+                break;
+            case spirvEnum.Op.OpSpecConstantTrue:
+                constantValues.set(module[i + 2], "spec(True)");
+                break;
+            case spirvEnum.Op.OpSpecConstantFalse:
+                constantValues.set(module[i + 2], "spec(False)");
+                break;
+            // value was found already above in LiteralContextDependentNumber check
+            case spirvEnum.Op.OpSpecConstant:
+            case spirvEnum.Op.OpConstant:
+            // not supported
+            case spirvEnum.Op.OpConstantComposite:
+            case spirvEnum.Op.OpConstantSampler:
+            case spirvEnum.Op.OpSpecConstantComposite:
+            case spirvEnum.Op.OpSpecConstantOp:
+            case spirvEnum.Op.OpConstantCompositeContinuedINTEL:
+            case spirvEnum.Op.OpSpecConstantCompositeContinuedINTEL:
+                break;
+        };
 
         // After parsing instruction insertions/updates
         instructionMap.set(instructionCount, {
@@ -903,6 +940,30 @@ function useOpNames(toggle) {
         var newValue = toggle ? ("%" + value) : ("%" + key);
         for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
             document.getElementsByClassName(className)[i].innerText = newValue;
+        }
+    });
+}
+
+// @param toggle True to use, False to not
+function insertConstants(toggle) {
+    // Map contains (42 -> "string")
+    constantValues.forEach(function(value, key, map) {
+        // Each HTML element is id="id42"
+        var className = "id" + key;
+        var newValue = toggle ? value : ("%" + key);
+        for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
+            var element = document.getElementsByClassName(className)[i];
+            // don't replace the result of the constant op itself
+            if (element.classList.contains("result")) {
+                continue;
+            }
+            element.innerText = newValue;
+            // give unique color from normal ids
+            if (toggle) {
+                element.classList.add("insertConstant");
+            } else {
+                element.classList.remove("insertConstant");
+            }
         }
     });
 }
