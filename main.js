@@ -84,10 +84,10 @@ function parseBinaryStream(binary) {
         "function" : 0
     };
 
-    // all instructions before first function are by themselves in "preFunciton"
+    // all instructions before first function are by themselves in "preFunciton" which is broken into 4 sections
     // Set preFunction div the same way as a normal function
     var preFunctionDiv = document.createElement("div");
-    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, "preFunction", "preFunction");
+    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, "preFunction", "modeSetting", "Mode Setting");
 
     // div hierarchy
     // disassembleDiv -> function -> label -> instructions
@@ -97,6 +97,11 @@ function parseBinaryStream(binary) {
     // How much each basic block will indent by
     var indentStack = [];
     const indentMultipler = 10; // pixel
+
+    // when to insert rest of preFunction sections
+    var insertedDebug = false;
+    var insertedAnnotation = false;
+    var insertedType = false;
 
     // There is a 2 pass system through the stream
     //   First pass: Setup all the DOM elements
@@ -114,8 +119,27 @@ function parseBinaryStream(binary) {
         var hasResult = opcodeHasResult(opcode);
         var opcodeResultType = hasResultType ? module[i + 1] : undefined;
         var opcodeResult = hasResult ? (hasResultType ? module[i + 2] :  module[i + 1]) : undefined;
+        var instructionInfo = spirvInstruction.get(opcode);
         // Holds operands that are an id (non-literals)
         var operandIdList = [];
+
+        // Find other preFunction opcodes to create more labels
+        if (insertedDebug == false && instructionInfo.class == "Debug") {
+            insertedDebug = true;
+            commentDiv = document.createElement("div");
+            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "debug", "Debug Information");
+            currentInstructionDiv = commentDiv;
+        } else if (insertedAnnotation == false && instructionInfo.class == "Annotation") {
+            insertedAnnotation = true;
+            commentDiv = document.createElement("div");
+            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "annotations", "Annotations");
+            currentInstructionDiv = commentDiv;
+        } else if (insertedType == false && instructionInfo.class == "Type-Declaration") {
+            insertedType = true;
+            commentDiv = document.createElement("div");
+            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "types", "Types, variables and constants");
+            currentInstructionDiv = commentDiv;
+        }
 
         // Handles all aspects related to CFG
         {
@@ -140,7 +164,7 @@ function parseBinaryStream(binary) {
                     currentFunction.start = instructionCount;
 
                     var newDiv = document.createElement("div");
-                    addCollapsibleWrapper(newDiv, disassembleDiv, instructionCount, "function");
+                    addCollapsibleWrapper(newDiv, disassembleDiv, "function", instructionCount, "Function " + instructionCount);
 
                     currentFunctionDiv = newDiv;
                     currentInstructionDiv = newDiv;
@@ -159,7 +183,7 @@ function parseBinaryStream(binary) {
                     var newDiv = document.createElement("div");
 
                     assert(currentFunctionDiv, "OpLabel not in a function block");
-                    addCollapsibleWrapper(newDiv, currentFunctionDiv, instructionCount, "label");
+                    addCollapsibleWrapper(newDiv, currentFunctionDiv, "label", instructionCount, "Label " + instructionCount);
 
                     // Set index for both div and the collasible label
                     var indentSize = ((indentStack.length * indentMultipler) + 5);
@@ -285,7 +309,6 @@ function parseBinaryStream(binary) {
             // Handles all cases that occur in grammar json files
             while(operandOffset < instructionLength) {
                 var operand = module[i + operandOffset];
-                var instructionInfo = spirvInstruction.get(opcode);
 
                 // Need to know where the current operand should be grabbed from
                 if (optionalArray) {
@@ -763,7 +786,7 @@ function createIdHtmlString(id, extraClass) {
 
 // Wraps the div with the proper HTML elements
 // newDiv param must have been created prior to keep scope
-function addCollapsibleWrapper(newDiv, appendDiv, attributeName, type) {
+function addCollapsibleWrapper(newDiv, appendDiv, type, attributeName, displayName) {
     var input = document.createElement("input");
     input.setAttribute("id", "collapsible_" + attributeName);
     input.setAttribute("class", "toggle");
@@ -774,13 +797,7 @@ function addCollapsibleWrapper(newDiv, appendDiv, attributeName, type) {
     var label = document.createElement("label");
     label.setAttribute("for", "collapsible_" + attributeName);
     label.setAttribute("class", "label-toggle label-" + type);
-    if (type == "preFunction") {
-        label.innerHTML = "Pre-Function";
-    } else if (type == "function") {
-        label.innerHTML = "Function " + attributeName;
-    } else {
-        label.innerHTML = "Label " + attributeName;
-    }
+    label.innerHTML = displayName
 
     var wrapDiv = document.createElement("div");
     wrapDiv.setAttribute("class", "collapsible-content");
