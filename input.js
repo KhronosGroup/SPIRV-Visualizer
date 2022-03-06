@@ -121,6 +121,7 @@ function operationOnClick(event) {
 // Some settings are easier to reset than have stateful logic of inputs outside this file
 function resetSettings() {
     document.getElementById("opNames").checked = false;
+    document.getElementById("insertConstants").checked = false;
 }
 
 // Sends all checkboxes out to handlers
