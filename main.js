@@ -234,9 +234,9 @@ function parseBinaryStream(binary) {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeGlslStd450);
             } else if (extendedName == "OpenCL.std") {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLStd);
-            } else if (extendedName == "NonSemantic.DebugPrintf") {
+            } else if (extendedName.startsWith("NonSemantic.DebugPrintf")) {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcDebugPrintf);
-            } else if ((extendedName == "NonSemantic.ClspvReflection") || (extendedName == "NonSemantic.ClspvReflection.1")) {
+            } else if (extendedName.startsWith("NonSemantic.ClspvReflection")) {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcClspvReflection);
             } else if (extendedName == "DebugInfo") {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeDebugInfo);
