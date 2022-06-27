@@ -124,6 +124,12 @@
     color : orangered;
 }
 
+.debugString:hover {
+    color : blue;
+    font-weight: bold;
+    cursor: pointer;
+}
+
 .enumerant {
     color : orangered;
 }
