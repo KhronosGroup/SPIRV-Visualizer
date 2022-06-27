@@ -118,6 +118,13 @@ function operationOnClick(event) {
     displayDagOpcode(opcode, instruction);
 }
 
+function debugStringOnClick(event) {
+    var parent = event.target.parentElement;
+    // id will be of "instruction_x"
+    var instruction = parseInt(parent.id.substring(parent.id.indexOf("_")+1));
+    displayDebugString(instruction);
+}
+
 // Some settings are easier to reset than have stateful logic of inputs outside this file
 function resetSettings() {
     document.getElementById("opNames").checked = false;

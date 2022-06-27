@@ -1,3 +1,8 @@
+body {
+    /* prevent scroll bar for whole page */
+    overflow: hidden;
+}
+
 #mainModuleContainer {
     width: 99vw; /* 100 causes small scroll bar*/
     min-height: 100%;
@@ -15,7 +20,7 @@
 
 .mainColumn {
     float: left;
-    height: 89vh; /* prevent scroll bar for whole page */
+    height: 91vh;
     padding: .5%;
     margin-top: 0vh;
     border: 1px solid black;
@@ -122,6 +127,12 @@
 
 .literal {
     color : orangered;
+}
+
+.debugString:hover {
+    color : blue;
+    font-weight: bold;
+    cursor: pointer;
 }
 
 .enumerant {

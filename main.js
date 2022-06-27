@@ -26,8 +26,10 @@ var branchMap = new Map();
 // 2D array with key being an ID
 //    value is array of all instructions that use it
 var idConsumers = [];
-// Mapping of all results to an opName string
+// Mapping of all results to an OpName string
 var opNameMap = new Map();
+// Mapping of instruction index to an debug instruction (ex OpSource) string
+var debugStringMap = new Map();
 // Mapping of what to display if inserting constant values
 var constantValues = new Map();
 // Mapping of resultId to extended instructions literal name
@@ -42,6 +44,7 @@ function resetTracking() {
     branchMap = new Map();
     idConsumers = [];
     opNameMap = new Map();
+    debugStringMap = new Map();
     constantValues = new Map();
     resultToExtInstructionName = new Map();
 }
@@ -382,10 +385,18 @@ function parseBinaryStream(binary) {
                     }
 
                 } else if (kind == "LiteralString") {
-                    instructionString += " <span class=\"operand literal\">\""
                     var literalString = getLiteralString(module.slice(i + operandOffset, i + instructionLength));
-                    instructionString += literalString;
-                    instructionString += "\"</span>"
+                    // Source strings can be unhelpfully long, so hide by default
+                    if (opcode == spirvEnum.Op.OpSource || opcode == spirvEnum.Op.OpSourceContinued || opcode == spirvEnum.Op.OpModuleProcessed) {
+                        debugStringMap.set(instructionCount, literalString);
+                        instructionString += " <span class=\"operand literal debugString\">"
+                        instructionString += "click to view"
+                        instructionString += "</span>"
+                    } else {
+                        instructionString += " <span class=\"operand literal\">\""
+                        instructionString += literalString;
+                        instructionString += "\"</span>"
+                    }
                     operandNameList.push(operandName);
                     // Add 1 for the null terminator
                     operandOffset += Math.ceil((literalString.length + 1) / 4);
@@ -768,6 +779,7 @@ function parseBinaryStream(binary) {
         // Apply jquery events
         $(".id").on("click", idOnClick);
         $(".operation").on("click", operationOnClick);
+        $(".debugString").on("click", debugStringOnClick);
     }
 
     // Nothing has failed
@@ -829,6 +841,9 @@ const instructionHighlightOn = "#c9cdff"; // when in use in dag
 const instructionHighlightHover = "#9595ff"; // when in use and hovered
 
 function clearDagData() {
+    // While here, if debug string was used, clear it as well
+    document.getElementById("debugStringDiv").innerText = "";
+
     for (let i = 0; i < liveDagData.length; i++) {
         var instructionFn = $("#instruction_" + liveDagData[i].id);
         var instructionDiv = instructionFn[0];
@@ -946,6 +961,15 @@ function displayDagResult(result, instruction) {
         fillDagData(consumers[i], [instruction]);
     }
     drawDag(liveDagData);
+}
+
+// @param instruction Assumes is already parsed to int
+function displayDebugString(instruction) {
+    clearDagData();
+    d3.select("#dagSvg").selectAll("*").remove();
+
+    debugStringDiv = document.getElementById("debugStringDiv");
+    debugStringDiv.innerText = debugStringMap.get(instruction);
 }
 
 // @param toggle True to use, False to not
