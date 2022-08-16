@@ -258,8 +258,7 @@ function parseBinaryStream(binary) {
 
             // Handle the result and type as always will be in front
             if (hasResult == true) {
-                instructionString += " "
-                instructionString += createIdHtmlString(opcodeResult, "result");
+                instructionString += " " + createIdHtmlString(opcodeResult, "result");
                 instructionString += " = "
                 resultToInstructionMap.set(opcodeResult, instructionCount);
             }
@@ -267,8 +266,7 @@ function parseBinaryStream(binary) {
             instructionString += " <a class=\"operation\">" + mapValueToEnumKey(spirvEnum.Op, opcode) + "</a>"
 
             if (hasResultType == true) {
-                instructionString += " "
-                instructionString += createIdHtmlString(opcodeResultType, "resultType");
+                instructionString += " " + createIdHtmlString(opcodeResultType, "resultType");
                 idConsumers[opcodeResultType].push(instructionCount);
                 operandIdList.push(opcodeResultType);
             }
@@ -365,8 +363,8 @@ function parseBinaryStream(binary) {
                         // Finish rest of words
                         var quantifierIndex = 0;
                         while(operandOffset < instructionLength) {
-                            instructionString += " "
-                            instructionString += createIdHtmlString(module[i + operandOffset], "operand");
+
+                            instructionString += " " + createIdHtmlString(module[i + operandOffset], "operand");
                             idConsumers[module[i + operandOffset]].push(instructionCount);
                             operandIdList.push(module[i + operandOffset]);
                             operandOffset++;
@@ -376,8 +374,7 @@ function parseBinaryStream(binary) {
                         }
                     } else {
                         // if optional (quantifier == "?"), print as normal
-                        instructionString += " "
-                        instructionString += createIdHtmlString(operand, "operand");
+                        instructionString += " " + createIdHtmlString(operand, "operand");
                         idConsumers[operand].push(instructionCount);
                         operandIdList.push(operand);
                         operandNameList.push(operandName);
@@ -403,7 +400,7 @@ function parseBinaryStream(binary) {
 
                 } else if (kind == "LiteralInteger") {
                     // single word literal
-                    instructionString += " <span class=\"operand literal\">" + operand + "</span>";
+                    instructionString += " " + createLiteralHtmlString(operand);
                     operandNameList.push(operandName);
                     operandOffset++;
 
@@ -415,19 +412,18 @@ function parseBinaryStream(binary) {
 
                     // This will have the while loop use the extended grammar
                     extendedOperandInfo = spirvExtInst.get(extendedSet).get(operand);
-                    instructionString += " <span class=\"operand literal\">" + extendedOperandInfo.opname + "</span>";
+                    instructionString += " " + createLiteralHtmlString(extendedOperandInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
 
                 } else if (kind == "LiteralSpecConstantOpInteger") {
-                    instructionString += " <span class=\"operand literal\">" + spirvInstruction.get(module[i + operandOffset]).opname + "</span>";
+                    instructionString += " " + createLiteralHtmlString(spirvInstruction.get(module[i + operandOffset]).opname);
                     operandNameList.push(operandName);
                     operandOffset++;
 
                     var quantifierIndex = 0;
                     while(operandOffset < instructionLength) {
-                        instructionString += " "
-                        instructionString += createIdHtmlString(module[i + operandOffset], "operand");
+                        instructionString += " " + createIdHtmlString(module[i + operandOffset], "operand");
                         idConsumers[module[i + operandOffset]].push(instructionCount);
                         operandIdList.push(module[i + operandOffset]);
                         operandOffset++;
@@ -489,13 +485,12 @@ function parseBinaryStream(binary) {
                     }
                     constantValues.set(module[i + 2], insertValue);
 
-                    instructionString += " <span class=\"operand literal\">" + operandValue + "</span>";
+                    instructionString += " " + createLiteralHtmlString(operandValue);
                     operandNameList.push(operandName);
                     operandOffset += width;
 
                 } else if ((kind == "IdMemorySemantics") || (kind == "IdScope")) {
-                    instructionString += " "
-                    instructionString += createIdHtmlString(operand, "operand");
+                    instructionString += " " + createIdHtmlString(operand, "operand");
                     idConsumers[operand].push(instructionCount);
                     operandIdList.push(operand);
                     operandNameList.push(operandName);
@@ -507,8 +502,8 @@ function parseBinaryStream(binary) {
                     while(operandOffset < instructionLength) {
                         if (opcode == spirvEnum.Op.OpSwitch) {
                             instructionString += " (Case ";
-                            instructionString += " <span class=\"operand literal\">" + module[i + operandOffset] + "</span>";
-                            instructionString += ": ";
+                            instructionString += createLiteralHtmlString(module[i + operandOffset]);
+                            instructionString += " : ";
                             instructionString += createIdHtmlString(module[i + operandOffset + 1], "operand");
                             instructionString += ") ";
 
@@ -519,10 +514,10 @@ function parseBinaryStream(binary) {
                             operandNameList.push("Id");
                         }
                         if (opcode == spirvEnum.Op.OpGroupMemberDecorate) {
-                            instructionString += " ( ";
+                            instructionString += " (";
                             instructionString += createIdHtmlString(module[i + operandOffset], "operand");
-                            instructionString += ": ";
-                            instructionString += "<span class=\"operand literal\">" + module[i + operandOffset + 1] + "</span>";
+                            instructionString += " : ";
+                            instructionString += createLiteralHtmlString(module[i + operandOffset + 1]);
                             instructionString += ") ";
 
                             idConsumers[module[i + operandOffset]].push(instructionCount);
@@ -534,7 +529,7 @@ function parseBinaryStream(binary) {
                         if (opcode == spirvEnum.Op.OpPhi) {
                             instructionString += " (";
                             instructionString += createIdHtmlString(module[i + operandOffset], "operand");
-                            instructionString += ": ";
+                            instructionString += " : ";
                             instructionString += createIdHtmlString(module[i + operandOffset + 1], "operand");
                             instructionString += ") ";
 
@@ -794,6 +789,10 @@ function parseBinaryStream(binary) {
 // Takes id and creates html string to be displayed
 function createIdHtmlString(id, extraClass) {
     return "<a class=\"" + extraClass + " id id" + id + "\">%" + id + "</a>"
+}
+
+function createLiteralHtmlString(literal) {
+    return "<span class=\"operand literal\">" + literal + "</span>";
 }
 
 // Wraps the div with the proper HTML elements
