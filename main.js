@@ -907,10 +907,25 @@ function fillDagData(instruction, parents) {
     });
 }
 
+// There can be cases where a phi loops back to itself such as:
+// %add = OpIAdd %int %phi %int_1
+// %phi = OpPhi %int %other %p1 %add %p2
+// To prevent a "Maximum call stack size exceeded" error, check if already seen node
+var seenDagNodesSet;
+
 // @brief Recursive function to fill dag data from all the parentInstructions backwards
 // @param instruction Which instruction in the module
 // @param operand If set, will only branch into that operand and not all parentIds
-function fillDagBackward(instruction, operand) {
+// @param entryCall only true when the first call to the function is made
+function fillDagBackward(instruction, operand, entryCall) {
+    if (entryCall) {
+        seenDagNodesSet = new Set();
+    }
+    if (seenDagNodesSet.has(instruction)) {
+        return; // prevents infinite looping this function
+    }
+    seenDagNodesSet.add(instruction);
+
     var parents = [];
     if (operand) {
         // only search parent of passed in operand
@@ -922,13 +937,16 @@ function fillDagBackward(instruction, operand) {
 
     // D3 is expecting an array, not a set, but have to make sure no duplicates
     // otherwise it will form dead nodes. This is a central spot to de-dup the array
-    parents = parents.filter(function(item, pos) {
-        return parents.indexOf(item) == pos;
+    //
+    // Need to also prevent handing D3 a cycle and removing any node already seen.
+    // Doing it here is the easiest spot to do it while building the DAG
+    parents = parents.filter(function(element, index) {
+        return (parents.indexOf(element) == index) && (!seenDagNodesSet.has(element));
     })
 
     fillDagData(instruction, parents);
     for (let i = 0; i < parents.length; i++) {
-        fillDagBackward(parents[i]);
+        fillDagBackward(parents[i], undefined, false);
     }
 }
 
@@ -936,7 +954,7 @@ function fillDagBackward(instruction, operand) {
 // @param instruction Assumes is already parsed to int
 function displayDagOpcode(opcode, instruction) {
     clearDagData();
-    fillDagBackward(instruction);
+    fillDagBackward(instruction, undefined, true);
     drawDag(liveDagData);
 }
 
@@ -945,7 +963,7 @@ function displayDagOpcode(opcode, instruction) {
 // @param instruction Assumes is already parsed to int
 function displayDagOperand(operand, instruction) {
     clearDagData();
-    fillDagBackward(instruction, operand);
+    fillDagBackward(instruction, operand, true);
     drawDag(liveDagData);
 }
 
