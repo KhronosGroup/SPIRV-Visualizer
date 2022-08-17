@@ -291,6 +291,10 @@ function parseBinaryStream(binary) {
             // Some instructions will have multiple parameter operands and need to iterate through each
             var parameterOperandQueue = [];
 
+            // When a OpSpecConstantOp is used, the remaining operands are pull from the new instruction
+            var specConstantOpInfo = undefined;
+            var specConstantOpIndex = 0;
+
             // These need to be set outside the while loop for optionalArray to just reuse
             // the last type of operand for the rest of the instructions
             var optionalArray = false;
@@ -328,6 +332,9 @@ function parseBinaryStream(binary) {
                         parameterOperandInfo = parameterOperandQueue.shift();
                         parameterOperandIndex = 0;
                     }
+                } else if (specConstantOpInfo) {
+                    operandInfo = specConstantOpInfo.operands[specConstantOpIndex];
+                    specConstantOpIndex++;
                 } else {
                     // Normal
                     operandInfo = instructionInfo.operands[grammarOperandIndex];
@@ -363,10 +370,10 @@ function parseBinaryStream(binary) {
                         // Finish rest of words
                         var quantifierIndex = 0;
                         while(operandOffset < instructionLength) {
-
-                            instructionString += " " + createIdHtmlString(module[i + operandOffset], "operand");
-                            idConsumers[module[i + operandOffset]].push(instructionCount);
-                            operandIdList.push(module[i + operandOffset]);
+                            var nextOperand = module[i + operandOffset]
+                            instructionString += " " + createIdHtmlString(nextOperand, "operand");
+                            idConsumers[nextOperand].push(instructionCount);
+                            operandIdList.push(nextOperand);
                             operandOffset++;
 
                             operandNameList.push(operandName + " " + quantifierIndex);
@@ -417,20 +424,14 @@ function parseBinaryStream(binary) {
                     operandOffset++;
 
                 } else if (kind == "LiteralSpecConstantOpInteger") {
-                    instructionString += " " + createLiteralHtmlString(spirvInstruction.get(module[i + operandOffset]).opname);
+                    specConstantOpInfo = spirvInstruction.get(module[i + operandOffset]);
+                    instructionString += " " + createLiteralHtmlString(specConstantOpInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
-
-                    var quantifierIndex = 0;
-                    while(operandOffset < instructionLength) {
-                        instructionString += " " + createIdHtmlString(module[i + operandOffset], "operand");
-                        idConsumers[module[i + operandOffset]].push(instructionCount);
-                        operandIdList.push(module[i + operandOffset]);
-                        operandOffset++;
-
-                        operandNameList.push("Operand " + quantifierIndex);
-                        quantifierIndex++;
-                    }
+                    specConstantOpIndex = 0;
+                    // Start after results as they inherit from parent instruction
+                    specConstantOpIndex += opcodeHasResultType(specConstantOpInfo.opcode) ? 1 : 0;
+                    specConstantOpIndex += opcodeHasResult(specConstantOpInfo.opcode) ? 1 : 0;
 
                 } else if (kind == "LiteralContextDependentNumber") {
                     // Handle any opcodes that have context dependent operands
@@ -500,43 +501,45 @@ function parseBinaryStream(binary) {
                     // All share the same logic of finshing rest of words 2 operands at a time
                     var quantifierIndex = 0;
                     while(operandOffset < instructionLength) {
+                        var nextOperand = module[i + operandOffset];
+                        var nextNextOperand = module[i + operandOffset + 1];
                         if (opcode == spirvEnum.Op.OpSwitch) {
                             instructionString += " (Case ";
-                            instructionString += createLiteralHtmlString(module[i + operandOffset]);
+                            instructionString += createLiteralHtmlString(nextOperand);
                             instructionString += " : ";
-                            instructionString += createIdHtmlString(module[i + operandOffset + 1], "operand");
+                            instructionString += createIdHtmlString(nextNextOperand, "operand");
                             instructionString += ") ";
 
-                            idConsumers[module[i + operandOffset + 1]].push(instructionCount);
-                            operandIdList.push(module[i + operandOffset + 1]);
+                            idConsumers[nextNextOperand].push(instructionCount);
+                            operandIdList.push(nextNextOperand);
 
                             operandNameList.push("Case");
                             operandNameList.push("Id");
                         }
                         if (opcode == spirvEnum.Op.OpGroupMemberDecorate) {
                             instructionString += " (";
-                            instructionString += createIdHtmlString(module[i + operandOffset], "operand");
+                            instructionString += createIdHtmlString(nextOperand, "operand");
                             instructionString += " : ";
-                            instructionString += createLiteralHtmlString(module[i + operandOffset + 1]);
+                            instructionString += createLiteralHtmlString(nextNextOperand);
                             instructionString += ") ";
 
-                            idConsumers[module[i + operandOffset]].push(instructionCount);
-                            operandIdList.push(module[i + operandOffset]);
+                            idConsumers[nextOperand].push(instructionCount);
+                            operandIdList.push(nextOperand);
 
                             operandNameList.push("Id " + quantifierIndex);
                             operandNameList.push("Member " + quantifierIndex);
                         }
                         if (opcode == spirvEnum.Op.OpPhi) {
                             instructionString += " (";
-                            instructionString += createIdHtmlString(module[i + operandOffset], "operand");
+                            instructionString += createIdHtmlString(nextOperand, "operand");
                             instructionString += " : ";
-                            instructionString += createIdHtmlString(module[i + operandOffset + 1], "operand");
+                            instructionString += createIdHtmlString(nextNextOperand, "operand");
                             instructionString += ") ";
 
-                            idConsumers[module[i + operandOffset]].push(instructionCount);
-                            idConsumers[module[i + operandOffset + 1]].push(instructionCount);
-                            operandIdList.push(module[i + operandOffset]);
-                            operandIdList.push(module[i + operandOffset + 1]);
+                            idConsumers[nextOperand].push(instructionCount);
+                            idConsumers[nextNextOperand].push(instructionCount);
+                            operandIdList.push(nextOperand);
+                            operandIdList.push(nextNextOperand);
 
                             operandNameList.push("Variable " + quantifierIndex);
                             operandNameList.push("Parent " + quantifierIndex);
