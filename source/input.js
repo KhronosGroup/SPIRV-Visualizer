@@ -149,3 +149,12 @@ $(document).ready(function(){
         }
     });
 });
+
+$("#collapseAll").on( "click", function() {
+    let toggle_elements = document.getElementsByClassName('toggle');
+    for (let i = 0; i < toggle_elements.length; i++) {
+        if (toggle_elements[i].checked) {
+            toggle_elements[i].click();
+        }
+    }
+});
