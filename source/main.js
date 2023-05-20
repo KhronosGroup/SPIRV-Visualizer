@@ -11,11 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-"use strict";
+'use strict';
 
 // Grab all DOM objects
 
-const disassembleDiv = document.getElementById("disassembleDiv");
+const disassembleDiv = document.getElementById('disassembleDiv');
 
 // Tracking Information per parse
 var functionList = [];
@@ -57,16 +57,16 @@ function parseBinaryStream(binary) {
     const performanceStart = performance.now();
 
     // Clear div from any previous run
-    disassembleDiv.innerHTML = "";
+    disassembleDiv.innerHTML = '';
     // clear previous SVG
-    d3.select("#dagSvg").selectAll("*").remove();
+    d3.select('#dagSvg').selectAll('*').remove();
     resetTracking();
 
     // translate to Uint32 array to match each SPIR-V dword
-    assert(binary.byteLength % 4 == 0, "File is not 4 byte (32 bit) aligned, are you sure this is a binary SPIR-V file?");
+    assert(binary.byteLength % 4 == 0, 'File is not 4 byte (32 bit) aligned, are you sure this is a binary SPIR-V file?');
     const module = new Uint32Array(binary);
 
-    assert(module.length >= 5, "module less than 5 dwords which is the size of the header");
+    assert(module.length >= 5, 'module less than 5 dwords which is the size of the header');
 
     validateHeader(module.slice(0, 5));
     const maxIdBound = module[3];
@@ -79,20 +79,13 @@ function parseBinaryStream(binary) {
 
     // internal representation of the module
     // Built up in first pass
-    var currentFunction = {
-        "start" : 0,
-        "end" : 0
-    };
-    var currentBlock = {
-        "start" : 0,
-        "end" : 0,
-        "function" : 0
-    };
+    var currentFunction = {'start': 0, 'end': 0};
+    var currentBlock = {'start': 0, 'end': 0, 'function': 0};
 
     // all instructions before first function are by themselves in "preFunciton" which is broken into 4 sections
     // Set preFunction div the same way as a normal function
-    var preFunctionDiv = document.createElement("div");
-    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, "preFunction", "modeSetting", "Mode Setting");
+    var preFunctionDiv = document.createElement('div');
+    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, 'preFunction', 'modeSetting', 'Mode Setting');
 
     // div hierarchy
     // disassembleDiv -> function -> label -> instructions
@@ -101,7 +94,7 @@ function parseBinaryStream(binary) {
 
     // How much each basic block will indent by
     var indentStack = [];
-    const indentMultipler = 10; // pixel
+    const indentMultipler = 10;  // pixel
 
     // when to insert rest of preFunction sections
     var insertedDebug = false;
@@ -123,26 +116,26 @@ function parseBinaryStream(binary) {
         var hasResultType = opcodeHasResultType(opcode);
         var hasResult = opcodeHasResult(opcode);
         var opcodeResultType = hasResultType ? module[i + 1] : undefined;
-        var opcodeResult = hasResult ? (hasResultType ? module[i + 2] :  module[i + 1]) : undefined;
+        var opcodeResult = hasResult ? (hasResultType ? module[i + 2] : module[i + 1]) : undefined;
         var instructionInfo = spirvInstruction.get(opcode);
         // Holds operands that are an id (non-literals)
         var operandIdList = [];
 
         // Find other preFunction opcodes to create more labels
-        if (insertedDebug == false && instructionInfo.class == "Debug") {
+        if (insertedDebug == false && instructionInfo.class == 'Debug') {
             insertedDebug = true;
-            let commentDiv = document.createElement("div");
-            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "debug", "Debug Information");
+            let commentDiv = document.createElement('div');
+            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'debug', 'Debug Information');
             currentInstructionDiv = commentDiv;
-        } else if (insertedAnnotation == false && instructionInfo.class == "Annotation") {
+        } else if (insertedAnnotation == false && instructionInfo.class == 'Annotation') {
             insertedAnnotation = true;
-            let commentDiv = document.createElement("div");
-            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "annotations", "Annotations");
+            let commentDiv = document.createElement('div');
+            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'annotations', 'Annotations');
             currentInstructionDiv = commentDiv;
-        } else if (insertedType == false && instructionInfo.class == "Type-Declaration") {
+        } else if (insertedType == false && instructionInfo.class == 'Type-Declaration') {
             insertedType = true;
-            let commentDiv = document.createElement("div");
-            addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "types", "Types, variables and constants");
+            let commentDiv = document.createElement('div');
+            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'types', 'Types, variables and constants');
             currentInstructionDiv = commentDiv;
         }
 
@@ -161,15 +154,15 @@ function parseBinaryStream(binary) {
                     }
                     break;
             }
-            assert(indentStack.length < 1024, "Control-flow nesting depth limit hit (or infinite loop bug code)")
+            assert(indentStack.length < 1024, 'Control-flow nesting depth limit hit (or infinite loop bug code)')
 
             // Map the boundaries for functions and blocks
             switch (opcode) {
                 case spirvEnum.Op.OpFunction:
                     currentFunction.start = instructionCount;
 
-                    var newDiv = document.createElement("div");
-                    addCollapsibleWrapper(newDiv, disassembleDiv, "function", instructionCount, "Function " + instructionCount);
+                    var newDiv = document.createElement('div');
+                    addCollapsibleWrapper(newDiv, disassembleDiv, 'function', instructionCount, 'Function ' + instructionCount);
 
                     currentFunctionDiv = newDiv;
                     currentInstructionDiv = newDiv;
@@ -185,15 +178,15 @@ function parseBinaryStream(binary) {
                     currentBlock.start = instructionCount;
                     currentBlock.function = currentFunction.start;
 
-                    var newDiv = document.createElement("div");
+                    var newDiv = document.createElement('div');
 
-                    assert(currentFunctionDiv, "OpLabel not in a function block");
-                    addCollapsibleWrapper(newDiv, currentFunctionDiv, "label", instructionCount, "Label " + instructionCount);
+                    assert(currentFunctionDiv, 'OpLabel not in a function block');
+                    addCollapsibleWrapper(newDiv, currentFunctionDiv, 'label', instructionCount, 'Label ' + instructionCount);
 
                     // Set index for both div and the collasible label
                     var indentSize = ((indentStack.length * indentMultipler) + 5);
-                    newDiv.style.marginLeft = indentSize + "px";
-                    newDiv.parentNode.previousElementSibling.style.marginLeft = indentSize + "px";
+                    newDiv.style.marginLeft = indentSize + 'px';
+                    newDiv.parentNode.previousElementSibling.style.marginLeft = indentSize + 'px';
 
                     currentInstructionDiv = newDiv;
                     break;
@@ -235,20 +228,20 @@ function parseBinaryStream(binary) {
         // Map extended instruction to result hashmap
         if (opcode == spirvEnum.Op.OpExtInstImport) {
             var extendedName = getLiteralString(module.slice(i + 2, i + instructionLength));
-            if (extendedName == "GLSL.std.450") {
+            if (extendedName == 'GLSL.std.450') {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeGlslStd450);
-            } else if (extendedName == "OpenCL.std") {
+            } else if (extendedName == 'OpenCL.std') {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLStd);
-            } else if (extendedName.startsWith("NonSemantic.DebugPrintf")) {
+            } else if (extendedName.startsWith('NonSemantic.DebugPrintf')) {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcDebugPrintf);
-            } else if (extendedName.startsWith("NonSemantic.ClspvReflection")) {
+            } else if (extendedName.startsWith('NonSemantic.ClspvReflection')) {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcClspvReflection);
-            } else if (extendedName == "DebugInfo") {
+            } else if (extendedName == 'DebugInfo') {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeDebugInfo);
-            } else if (extendedName == "OpenCL.DebugInfo.100") {
+            } else if (extendedName == 'OpenCL.DebugInfo.100') {
                 resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLDebug100);
             } else {
-                alert("Full support for " + extendedName + " has not been added. Good chance things might break. Please report!");
+                alert('Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
             }
         }
 
@@ -256,19 +249,19 @@ function parseBinaryStream(binary) {
         {
             // HTML string to display
             // ex. "[19]  %13 = OpTypeFunction %12"
-            var instructionString = "<span class=\"count\">[" + instructionCount + "]</span>&emsp;";
+            var instructionString = '<span class="count">[' + instructionCount + ']</span>&emsp;';
 
             // Handle the result and type as always will be in front
             if (hasResult == true) {
-                instructionString += " " + createIdHtmlString(opcodeResult, "result");
-                instructionString += " = "
+                instructionString += ' ' + createIdHtmlString(opcodeResult, 'result');
+                instructionString += ' = '
                 resultToInstructionMap.set(opcodeResult, instructionCount);
             }
 
-            instructionString += " <a class=\"operation\">" + mapValueToEnumKey(spirvEnum.Op, opcode) + "</a>"
+            instructionString += ' <a class="operation">' + mapValueToEnumKey(spirvEnum.Op, opcode) + '</a>'
 
             if (hasResultType == true) {
-                instructionString += " " + createIdHtmlString(opcodeResultType, "resultType");
+                instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');
                 idConsumers[opcodeResultType].push(instructionCount);
                 operandIdList.push(opcodeResultType);
             }
@@ -277,7 +270,7 @@ function parseBinaryStream(binary) {
             var grammarOperandIndex = 0;
 
             // Where in instruction currently in terms of word
-            var operandOffset = 1; // first dword is not a operand
+            var operandOffset = 1;  // first dword is not a operand
 
             // This list is per instruction. It can't be per opcode as some are variable length instructions
             // which results 2 uses of the same opcode have a different length array later
@@ -305,7 +298,7 @@ function parseBinaryStream(binary) {
             if (hasResultType == true) {
                 operandOffset++;
                 grammarOperandIndex++;
-                operandNameList.push("Result Type");
+                operandNameList.push('Result Type');
             }
             if (hasResult == true) {
                 operandOffset++
@@ -314,7 +307,7 @@ function parseBinaryStream(binary) {
 
             // This loop builds the instruction string using the operands
             // Handles all cases that occur in grammar json files
-            while(operandOffset < instructionLength) {
+            while (operandOffset < instructionLength) {
                 var operand = module[i + operandOffset];
 
                 // Need to know where the current operand should be grabbed from
@@ -345,89 +338,92 @@ function parseBinaryStream(binary) {
 
                 // "some" Grammar files stores names as "'name'" and want to remove string quote
                 // Fall back to the 'kind' string if no name string
-                assert(operandInfo != undefined, "Unable to find operands from grammar file");
+                assert(operandInfo != undefined, 'Unable to find operands from grammar file');
                 var operandName;
                 if (operandInfo.name) {
-                    operandName = (operandInfo.name[0] == "'") ? operandInfo.name.substring(1, operandInfo.name.length-1) : operandInfo.name;
+                    operandName = (operandInfo.name[0] == '\'') ? operandInfo.name.substring(1, operandInfo.name.length - 1) :
+                                                                  operandInfo.name;
                 } else {
                     operandName = operandInfo.kind;
                 }
 
-                optionalArray = (operandInfo.quantifier == "*");
+                optionalArray = (operandInfo.quantifier == '*');
                 var kind = operandInfo.kind;
 
-                if ((kind == "IdResultType") || (kind == "IdResult")) {
-                    assert(false, "Should not have to handle IdResultType or IdResult here");
-                } else if (kind == "IdRef") {
+                if ((kind == 'IdResultType') || (kind == 'IdResult')) {
+                    assert(false, 'Should not have to handle IdResultType or IdResult here');
+                } else if (kind == 'IdRef') {
                     // handle optional array as speical case for IdRef
                     if (optionalArray) {
                         // some name start listing items instead of being just the name
                         // Example: "'Member 0 type', +\n'member 1 type', +\n..."
                         // but note the first and last char were stripped above
-                        var endIndex = operandName.indexOf("'");
+                        var endIndex = operandName.indexOf('\'');
                         if (endIndex != -1) {
                             operandName = operandName.substring(0, endIndex);
-                            operandName = operandName.replace(/ [0-9]/g, ''); // remove number if one
+                            operandName = operandName.replace(/ [0-9]/g, '');  // remove number if one
                         }
                         // Finish rest of words
                         var quantifierIndex = 0;
-                        while(operandOffset < instructionLength) {
+                        while (operandOffset < instructionLength) {
                             var nextOperand = module[i + operandOffset]
-                            instructionString += " " + createIdHtmlString(nextOperand, "operand");
+                            instructionString += ' ' + createIdHtmlString(nextOperand, 'operand');
                             idConsumers[nextOperand].push(instructionCount);
                             operandIdList.push(nextOperand);
                             operandOffset++;
 
-                            operandNameList.push(operandName + " " + quantifierIndex);
+                            operandNameList.push(operandName + ' ' + quantifierIndex);
                             quantifierIndex++;
                         }
                     } else {
                         // if optional (quantifier == "?"), print as normal
-                        instructionString += " " + createIdHtmlString(operand, "operand");
+                        instructionString += ' ' + createIdHtmlString(operand, 'operand');
                         idConsumers[operand].push(instructionCount);
                         operandIdList.push(operand);
                         operandNameList.push(operandName);
                         operandOffset++;
                     }
 
-                } else if (kind == "LiteralString") {
+                } else if (kind == 'LiteralString') {
                     var literalString = getLiteralString(module.slice(i + operandOffset, i + instructionLength));
                     // Source strings can be unhelpfully long, so hide by default
-                    if (opcode == spirvEnum.Op.OpSource || opcode == spirvEnum.Op.OpSourceContinued || opcode == spirvEnum.Op.OpModuleProcessed) {
+                    if (opcode == spirvEnum.Op.OpSource || opcode == spirvEnum.Op.OpSourceContinued ||
+                        opcode == spirvEnum.Op.OpModuleProcessed) {
                         debugStringMap.set(instructionCount, literalString);
-                        instructionString += " <span class=\"operand literal debugString\">"
-                        instructionString += "click to view"
-                        instructionString += "</span>"
+                        instructionString += ' <span class="operand literal debugString">'
+                        instructionString += 'click to view'
+                        instructionString += '</span>'
                     } else {
-                        instructionString += " <span class=\"operand literal\">\""
+                        instructionString += ' <span class="operand literal">"'
                         instructionString += literalString;
-                        instructionString += "\"</span>"
+                        instructionString += '"</span>'
                     }
                     operandNameList.push(operandName);
                     // Add 1 for the null terminator
                     operandOffset += Math.ceil((literalString.length + 1) / 4);
 
-                } else if (kind == "LiteralInteger") {
+                } else if (kind == 'LiteralInteger') {
                     // single word literal
-                    instructionString += " " + createLiteralHtmlString(operand);
+                    instructionString += ' ' + createLiteralHtmlString(operand);
                     operandNameList.push(operandName);
                     operandOffset++;
 
-                } else if (kind == "LiteralExtInstInteger") {
-                    assert(opcode == spirvEnum.Op.OpExtInst, "Makes assumption OpExtInst is only opcode with LiteralExtInstInteger");
+                } else if (kind == 'LiteralExtInstInteger') {
+                    assert(
+                        opcode == spirvEnum.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
                     // single word literal but from extended instruction set
-                    var set = module[i + 3]
+                    var set = module[i + 3];
                     var extendedSet = resultToExtInstructionName.get(set);
 
                     // This will have the while loop use the extended grammar
                     extendedOperandInfo = spirvExtInst.get(extendedSet).get(operand);
-                    instructionString += " " + createLiteralHtmlString(extendedOperandInfo.opname);
+                    instructionString += ' ' + createLiteralHtmlString(extendedOperandInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
 
-                } else if (kind == "LiteralSpecConstantOpInteger") {
+                } else if (kind == 'LiteralSpecConstantOpInteger') {
                     specConstantOpInfo = spirvInstruction.get(module[i + operandOffset]);
-                    instructionString += " " + createLiteralHtmlString(specConstantOpInfo.opname);
+                    instructionString += ' ' + createLiteralHtmlString(specConstantOpInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
                     specConstantOpIndex = 0;
@@ -435,7 +431,7 @@ function parseBinaryStream(binary) {
                     specConstantOpIndex += opcodeHasResultType(specConstantOpInfo.opcode) ? 1 : 0;
                     specConstantOpIndex += opcodeHasResult(specConstantOpInfo.opcode) ? 1 : 0;
 
-                } else if (kind == "LiteralContextDependentNumber") {
+                } else if (kind == 'LiteralContextDependentNumber') {
                     // Handle any opcodes that have context dependent operands
                     var width = 1;
                     var operandValue = operand;
@@ -450,7 +446,7 @@ function parseBinaryStream(binary) {
                             }
                             // 4 instructions is a normal 32 bit width, extra instruction length is another byte
                             width = instructionLength - 3;
-                            assert(width <= 2, "parsing " + 32 * width + " bit int is not supported");
+                            assert(width <= 2, 'parsing ' + 32 * width + ' bit int is not supported');
                             if (width == 2) {
                                 // 64-bit Int
                                 // only the high bit are converted to singed
@@ -462,13 +458,13 @@ function parseBinaryStream(binary) {
                         } else if (contextInstruction.opcode == spirvEnum.Op.OpTypeFloat) {
                             // 4 instrutions is a normal 32 bit width, extra instruction length is another byte
                             width = instructionLength - 3;
-                            assert(width <= 2, "parsing " + 32 * width + " bit float is not supported");
-                            var lowBits = module[i+3].toString(2);
-                            lowBits = new Array(32 - lowBits.length).fill('0').join("") + lowBits;
+                            assert(width <= 2, 'parsing ' + 32 * width + ' bit float is not supported');
+                            var lowBits = module[i + 3].toString(2);
+                            lowBits = new Array(32 - lowBits.length).fill('0').join('') + lowBits;
                             if (width == 2) {
                                 // 64-bit Float
-                                let highBits = module[i+4].toString(2);
-                                highBits = new Array(32 - highBits.length).fill('0').join("") + highBits;
+                                let highBits = module[i + 4].toString(2);
+                                highBits = new Array(32 - highBits.length).fill('0').join('') + highBits;
                                 bits = highBits + lowBits;
                                 operandValue = parseFloatString(bits);
                             } else {
@@ -476,75 +472,77 @@ function parseBinaryStream(binary) {
                                 operandValue = parseFloatString(lowBits);
                             }
                         } else {
-                            assert(false, "OpConstant/OpSpecConstant result type is not OpTypeInt or OpTypeFloat");
+                            assert(false, 'OpConstant/OpSpecConstant result type is not OpTypeInt or OpTypeFloat');
                         }
                     } else {
-                        assert(false, "unknown opcode is using LiteralContextDependentNumber grammar, chance things might break now")
+                        assert(
+                            false, 'unknown opcode is using LiteralContextDependentNumber grammar, chance things might break now')
                     }
 
                     var insertValue = operandValue;
                     if (opcode == spirvEnum.Op.OpSpecConstant) {
-                        insertValue = "spec(" + insertValue + ")";
+                        insertValue = 'spec(' + insertValue + ')';
                     }
                     constantValues.set(module[i + 2], insertValue);
 
-                    instructionString += " " + createLiteralHtmlString(operandValue);
+                    instructionString += ' ' + createLiteralHtmlString(operandValue);
                     operandNameList.push(operandName);
                     operandOffset += width;
 
-                } else if ((kind == "IdMemorySemantics") || (kind == "IdScope")) {
-                    instructionString += " " + createIdHtmlString(operand, "operand");
+                } else if ((kind == 'IdMemorySemantics') || (kind == 'IdScope')) {
+                    instructionString += ' ' + createIdHtmlString(operand, 'operand');
                     idConsumers[operand].push(instructionCount);
                     operandIdList.push(operand);
                     operandNameList.push(operandName);
                     operandOffset++;
 
-                } else if ((kind == "PairLiteralIntegerIdRef") || (kind == "PairIdRefLiteralInteger") || (kind == "PairIdRefIdRef")) {
+                } else if (
+                    (kind == 'PairLiteralIntegerIdRef') || (kind == 'PairIdRefLiteralInteger') || (kind == 'PairIdRefIdRef')) {
                     // All share the same logic of finshing rest of words 2 operands at a time
                     var quantifierIndex = 0;
-                    while(operandOffset < instructionLength) {
+                    while (operandOffset < instructionLength) {
                         var nextOperand = module[i + operandOffset];
                         var nextNextOperand = module[i + operandOffset + 1];
                         if (opcode == spirvEnum.Op.OpSwitch) {
-                            instructionString += " (Case ";
+                            instructionString += ' (Case ';
                             instructionString += createLiteralHtmlString(nextOperand);
-                            instructionString += " : ";
-                            instructionString += createIdHtmlString(nextNextOperand, "operand");
-                            instructionString += ") ";
+                            instructionString += ' : ';
+                            instructionString += createIdHtmlString(nextNextOperand, 'operand');
+                            instructionString += ') ';
 
                             idConsumers[nextNextOperand].push(instructionCount);
                             operandIdList.push(nextNextOperand);
 
-                            operandNameList.push("Case");
-                            operandNameList.push("Id");
+                            operandNameList.push('Case');
+                            operandNameList.push('Id');
                         }
                         if (opcode == spirvEnum.Op.OpGroupMemberDecorate) {
-                            instructionString += " (";
-                            instructionString += createIdHtmlString(nextOperand, "operand");
-                            instructionString += " : ";
+                            instructionString += ' (';
+                            instructionString += createIdHtmlString(nextOperand, 'operand');
+                            instructionString += ' : ';
                             instructionString += createLiteralHtmlString(nextNextOperand);
-                            instructionString += ") ";
+                            instructionString += ') ';
 
                             idConsumers[nextOperand].push(instructionCount);
                             operandIdList.push(nextOperand);
 
-                            operandNameList.push("Id " + quantifierIndex);
-                            operandNameList.push("Member " + quantifierIndex);
+                            operandNameList.push('Id ' + quantifierIndex);
+                            operandNameList.push('Member ' + quantifierIndex);
                         }
                         if (opcode == spirvEnum.Op.OpPhi) {
-                            instructionString += " (";
-                            instructionString += createIdHtmlString(nextOperand, "operand");
-                            instructionString += " : ";
-                            instructionString += createIdHtmlString(nextNextOperand, "operand");
-                            instructionString += ") ";
+                            instructionString += ' (';
+                            instructionString += createIdHtmlString(nextOperand, 'operand');
+                            instructionString += ' : ';
+                            instructionString += createIdHtmlString(nextNextOperand, 'operand');
+                            instructionString += ') ';
 
                             idConsumers[nextOperand].push(instructionCount);
                             idConsumers[nextNextOperand].push(instructionCount);
                             operandIdList.push(nextOperand);
                             operandIdList.push(nextNextOperand);
 
-                            operandNameList.push("Variable " + quantifierIndex);
-                            operandNameList.push("Parent " + quantifierIndex);
+                            operandNameList.push('Variable ' + quantifierIndex);
+                            operandNameList.push('Parent ' + quantifierIndex);
                         }
                         operandOffset += 2;
                         quantifierIndex++;
@@ -553,29 +551,29 @@ function parseBinaryStream(binary) {
                     operandInfo = spirvOperand.get(kind);
                     // If extended instruction might need to check grammar file
                     if (!operandInfo && extendedOperandInfo) {
-                        var set = module[i + 3]
+                        var set = module[i + 3];
                         var extendedSet = resultToExtInstructionName.get(set);
                         operandInfo = spirvExtOperand.get(extendedSet).get(kind);
                     }
-                    assert(operandInfo != undefined, "Unknown grammar 'kind' of " + kind);
+                    assert(operandInfo != undefined, 'Unknown grammar \'kind\' of ' + kind);
 
                     if (operandInfo.enumerants) {
                         var enumerantsLength = operandInfo.enumerants.length;
-                        var bitEnumString = "";
+                        var bitEnumString = '';
                         var foundValue = false;
 
                         for (let i = 0; i < enumerantsLength; i++) {
                             var value = operandInfo.enumerants[i].value;
-                            if (operandInfo.category == "BitEnum") {
+                            if (operandInfo.category == 'BitEnum') {
                                 value = parseInt(operandInfo.enumerants[i].value, 16);
                                 // Will need to test each item if BitEnum
                                 // need to catch case where value and operand are both zero
-                                if (((value & operand) != 0) || (value == operand)){
+                                if (((value & operand) != 0) || (value == operand)) {
                                     // know at least one value found
                                     if (foundValue == false) {
                                         bitEnumString = operandInfo.enumerants[i].enumerant;
                                     } else {
-                                        bitEnumString += " | " + operandInfo.enumerants[i].enumerant;
+                                        bitEnumString += ' | ' + operandInfo.enumerants[i].enumerant;
                                     }
 
                                     if (operandInfo.enumerants[i].parameters) {
@@ -585,7 +583,8 @@ function parseBinaryStream(binary) {
                                 }
                             } else if (value == operand) {
                                 // Expect a single value, not flags if not BitEnum
-                                instructionString += " <span class=\"operand enumerant\">" + operandInfo.enumerants[i].enumerant + "</span>";
+                                instructionString +=
+                                    ' <span class="operand enumerant">' + operandInfo.enumerants[i].enumerant + '</span>';
 
                                 if (operandInfo.enumerants[i].parameters) {
                                     parameterOperandQueue.push(operandInfo.enumerants[i].parameters);
@@ -605,8 +604,8 @@ function parseBinaryStream(binary) {
                             }
 
                             // Need to formulate string after finding all enums as well as counter operand
-                            if (operandInfo.category == "BitEnum") {
-                                instructionString += " <span class=\"operand enumerant\">" + bitEnumString + "</span>";
+                            if (operandInfo.category == 'BitEnum') {
+                                instructionString += ' <span class="operand enumerant">' + bitEnumString + '</span>';
                             }
                         }
                     }
@@ -614,10 +613,10 @@ function parseBinaryStream(binary) {
             }
 
             // Create instruction div
-            var newDiv = document.createElement("div");
+            var newDiv = document.createElement('div');
             newDiv.innerHTML = instructionString
-            newDiv.setAttribute("id", "instruction_" + instructionCount);
-            newDiv.setAttribute("class", "instruction");
+            newDiv.setAttribute('id', 'instruction_' + instructionCount);
+            newDiv.setAttribute('class', 'instruction');
             currentInstructionDiv.appendChild(newDiv);
         }
 
@@ -626,8 +625,8 @@ function parseBinaryStream(binary) {
             var name = getLiteralString(module.slice(i + 2, i + instructionLength));
             // strings can be empty according to specs definition of Literals
             // to prevent looking like a bug, replace with some more visual
-            if (name == "") {
-                name = "[empty string]"
+            if (name == '') {
+                name = '[empty string]'
             }
 
             opNameMap.set(module[i + 1], name);
@@ -636,19 +635,19 @@ function parseBinaryStream(binary) {
         // Take Constant-Creation class opcodes and save const value to be displayed
         switch (opcode) {
             case spirvEnum.Op.OpConstantTrue:
-                constantValues.set(module[i + 2], "True");
+                constantValues.set(module[i + 2], 'True');
                 break;
             case spirvEnum.Op.OpConstantFalse:
-                constantValues.set(module[i + 2], "False");
+                constantValues.set(module[i + 2], 'False');
                 break;
             case spirvEnum.Op.OpConstantNull:
-                constantValues.set(module[i + 2], "Null");
+                constantValues.set(module[i + 2], 'Null');
                 break;
             case spirvEnum.Op.OpSpecConstantTrue:
-                constantValues.set(module[i + 2], "spec(True)");
+                constantValues.set(module[i + 2], 'spec(True)');
                 break;
             case spirvEnum.Op.OpSpecConstantFalse:
-                constantValues.set(module[i + 2], "spec(False)");
+                constantValues.set(module[i + 2], 'spec(False)');
                 break;
             // value was found already above in LiteralContextDependentNumber check
             case spirvEnum.Op.OpSpecConstant:
@@ -665,15 +664,15 @@ function parseBinaryStream(binary) {
 
         // After parsing instruction insertions/updates
         instructionMap.set(instructionCount, {
-            "moduleOffset" : i,
-            "block" : currentBlock.start,
-            "function" : currentFunction.start,
-            "opcode" : opcode,
-            "result": opcodeResult,
-            "resultType": opcodeResultType,
-            "operandNameList" : operandNameList,
-            "operandIdList" : operandIdList,
-            "parentInstructions" : []
+            'moduleOffset': i,
+            'block': currentBlock.start,
+            'function': currentFunction.start,
+            'opcode': opcode,
+            'result': opcodeResult,
+            'resultType': opcodeResultType,
+            'operandNameList': operandNameList,
+            'operandIdList': operandIdList,
+            'parentInstructions': []
         });
 
         i += instructionLength;
@@ -696,15 +695,15 @@ function parseBinaryStream(binary) {
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
                 var continueBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 2]))).block;
-                document.getElementById("label-" + headerBlock).className += (" loopHeaderBlock-" + headerBlock);
-                document.getElementById("label-" + mergeBlock).className += (" loopMergeBlock-" + headerBlock);
-                document.getElementById("label-" + continueBlock).className += (" loopContinueBlock-" + headerBlock);
+                document.getElementById('label-' + headerBlock).className += (' loopHeaderBlock-' + headerBlock);
+                document.getElementById('label-' + mergeBlock).className += (' loopMergeBlock-' + headerBlock);
+                document.getElementById('label-' + continueBlock).className += (' loopContinueBlock-' + headerBlock);
 
                 mergeBlockResult = instructionMap.get(mergeBlock).result
                 for (let key of branchMap.keys()) {
                     if (branchMap.get(key).includes(mergeBlockResult)) {
                         block = instructionMap.get(key).block
-                        document.getElementById("label-" + block).className += (" loopBreakBlock-" + headerBlock);
+                        document.getElementById('label-' + block).className += (' loopBreakBlock-' + headerBlock);
                     }
                 }
 
@@ -712,13 +711,13 @@ function parseBinaryStream(binary) {
             case spirvEnum.Op.OpSelectionMerge:
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
-                document.getElementById("label-" + headerBlock).className += (" selectionHeaderBlock-" + headerBlock);
-                document.getElementById("label-" + mergeBlock).className += (" selectionMergeBlock-" + headerBlock);
+                document.getElementById('label-' + headerBlock).className += (' selectionHeaderBlock-' + headerBlock);
+                document.getElementById('label-' + mergeBlock).className += (' selectionMergeBlock-' + headerBlock);
                 break;
             case spirvEnum.Op.OpReturn:
             case spirvEnum.Op.OpReturnValue:
                 var block = currentInstruction.block;
-                document.getElementById("label-" + block).className += " returnBlock-" + block;
+                document.getElementById('label-' + block).className += ' returnBlock-' + block;
                 break;
         }
 
@@ -740,7 +739,7 @@ function parseBinaryStream(binary) {
     // Anything to be done after both passes are made
     {
         // Copy CFG class names from blocks to OpLabel
-        var labelDivs = document.getElementsByClassName("label");
+        var labelDivs = document.getElementsByClassName('label');
         for (let i = 0; i < labelDivs.length; i++) {
             for (let value of labelDivs[i].classList.values()) {
                 if (value.startsWith('label') || (value.includes('-') == false)) {
@@ -748,77 +747,77 @@ function parseBinaryStream(binary) {
                 }
 
                 // Create span to add html text
-                var newDiv = document.createElement("span");
-                newDiv.setAttribute("class", "blockType");
+                var newDiv = document.createElement('span');
+                newDiv.setAttribute('class', 'blockType');
 
                 var instructionId = value.substring(value.indexOf('-') + 1);
                 // String switch case to find all the classes being used
-                if (value.startsWith("loopHeaderBlock")) {
-                    newDiv.innerHTML = " [Loop Header " + instructionId + "]";
-                } else if (value.startsWith("loopMergeBlock")) {
-                    newDiv.innerHTML = " [Loop Merge " + instructionId + "]";
-                } else if (value.startsWith("loopContinueBlock")) {
-                    newDiv.innerHTML = " [Loop Continue " + instructionId + "]";
-                } else if (value.startsWith("loopBreakBlock")) {
-                    newDiv.innerHTML = " [Loop Break " + instructionId + "]";
-                } else if (value.startsWith("selectionHeaderBlock")) {
-                    newDiv.innerHTML = " [Selection Header " + instructionId + "]";
-                } else if (value.startsWith("selectionMergeBlock")) {
-                    newDiv.innerHTML = " [Selection Merge " + instructionId + "]";
-                } else if (value.startsWith("returnBlock")) {
-                    newDiv.innerHTML = " [Return " + instructionId + "]";
+                if (value.startsWith('loopHeaderBlock')) {
+                    newDiv.innerHTML = ' [Loop Header ' + instructionId + ']';
+                } else if (value.startsWith('loopMergeBlock')) {
+                    newDiv.innerHTML = ' [Loop Merge ' + instructionId + ']';
+                } else if (value.startsWith('loopContinueBlock')) {
+                    newDiv.innerHTML = ' [Loop Continue ' + instructionId + ']';
+                } else if (value.startsWith('loopBreakBlock')) {
+                    newDiv.innerHTML = ' [Loop Break ' + instructionId + ']';
+                } else if (value.startsWith('selectionHeaderBlock')) {
+                    newDiv.innerHTML = ' [Selection Header ' + instructionId + ']';
+                } else if (value.startsWith('selectionMergeBlock')) {
+                    newDiv.innerHTML = ' [Selection Merge ' + instructionId + ']';
+                } else if (value.startsWith('returnBlock')) {
+                    newDiv.innerHTML = ' [Return ' + instructionId + ']';
                 } else {
-                    assert(false, "Unknown label class: " + value);
+                    assert(false, 'Unknown label class: ' + value);
                 }
 
-                newDiv.innerHTML + "<br>"
+                newDiv.innerHTML + '<br>'
                 labelDivs[i].prepend(newDiv);
             }
         }
 
         // Apply jquery events
-        $(".id").on("click", idOnClick);
-        $(".operation").on("click", operationOnClick);
-        $(".debugString").on("click", debugStringOnClick);
+        $('.id').on('click', idOnClick);
+        $('.operation').on('click', operationOnClick);
+        $('.debugString').on('click', debugStringOnClick);
     }
 
     // Nothing has failed
     const performanceEnd = performance.now();
-    document.getElementById("fileSelectName").innerHTML +=
-        "<br><span style=\"font-size : smaller\">" +
-        "binary parsed in <span style=\"color : deepskyblue\">" + ((performanceEnd - performanceStart) / 1000).toFixed(3) + "</span> seconds" +
-        "</span>";
+    document.getElementById('fileSelectName').innerHTML += '<br><span style="font-size : smaller">' +
+        'binary parsed in <span style="color : deepskyblue">' + ((performanceEnd - performanceStart) / 1000).toFixed(3) +
+        '</span> seconds' +
+        '</span>';
     return true;
 }
 
 // Takes id and creates html string to be displayed
 function createIdHtmlString(id, extraClass) {
-    return "<a class=\"" + extraClass + " id id" + id + "\">%" + id + "</a>"
+    return '<a class="' + extraClass + ' id id' + id + '">%' + id + '</a>'
 }
 
 function createLiteralHtmlString(literal) {
-    return "<span class=\"operand literal\">" + literal + "</span>";
+    return '<span class="operand literal">' + literal + '</span>';
 }
 
 // Wraps the div with the proper HTML elements
 // newDiv param must have been created prior to keep scope
 function addCollapsibleWrapper(newDiv, appendDiv, type, attributeName, displayName) {
-    var input = document.createElement("input");
-    input.setAttribute("id", "collapsible_" + attributeName);
-    input.setAttribute("class", "toggle");
-    input.setAttribute("type", "checkbox");
-    input.setAttribute("checked", "");
-    input.style.display = "none"; // hide checkbox
+    var input = document.createElement('input');
+    input.setAttribute('id', 'collapsible_' + attributeName);
+    input.setAttribute('class', 'toggle');
+    input.setAttribute('type', 'checkbox');
+    input.setAttribute('checked', '');
+    input.style.display = 'none';  // hide checkbox
 
-    var label = document.createElement("label");
-    label.setAttribute("for", "collapsible_" + attributeName);
-    label.setAttribute("class", "label-toggle label-" + type);
+    var label = document.createElement('label');
+    label.setAttribute('for', 'collapsible_' + attributeName);
+    label.setAttribute('class', 'label-toggle label-' + type);
     label.innerHTML = displayName
 
-    var wrapDiv = document.createElement("div");
-    wrapDiv.setAttribute("class", "collapsible-content");
-    newDiv.setAttribute("id", type + "-" + attributeName);
-    newDiv.setAttribute("class", type);
+    var wrapDiv = document.createElement('div');
+    wrapDiv.setAttribute('class', 'collapsible-content');
+    newDiv.setAttribute('id', type + '-' + attributeName);
+    newDiv.setAttribute('class', type);
 
     wrapDiv.appendChild(newDiv);
     appendDiv.appendChild(input);
@@ -830,26 +829,27 @@ function uncollapseInstruction(instructionDiv) {
     var labelDiv = instructionDiv.parentNode.parentNode.previousSibling;
     var inputDiv = labelDiv.previousSibling;
     inputDiv.checked = true;
-    if (labelDiv.classList.contains("label-label") == true) {
+    if (labelDiv.classList.contains('label-label') == true) {
         // Labels need to uncollapse the function they are in as well
-        var functionLabelDiv = instructionDiv.parentNode.parentNode.parentNode.parentNode.previousElementSibling.previousElementSibling;
-        functionLabelDiv.checked = true; // uncollapses
+        var functionLabelDiv =
+            instructionDiv.parentNode.parentNode.parentNode.parentNode.previousElementSibling.previousElementSibling;
+        functionLabelDiv.checked = true;  // uncollapses
     }
 }
 
 // Holds the current dag data used by d3
 var liveDagData = [];
 
-const instructionHighlightOff = "#ffffff"; // default state
-const instructionHighlightOn = "#c9cdff"; // when in use in dag
-const instructionHighlightHover = "#9595ff"; // when in use and hovered
+const instructionHighlightOff = '#ffffff';    // default state
+const instructionHighlightOn = '#c9cdff';     // when in use in dag
+const instructionHighlightHover = '#9595ff';  // when in use and hovered
 
 function clearDagData() {
     // While here, if debug string was used, clear it as well
-    document.getElementById("debugStringDiv").innerText = "";
+    document.getElementById('debugStringDiv').innerText = '';
 
     for (let i = 0; i < liveDagData.length; i++) {
-        let instructionFn = $("#instruction_" + liveDagData[i].id);
+        let instructionFn = $('#instruction_' + liveDagData[i].id);
         let instructionDiv = instructionFn[0];
 
         // on switching files these dives are already gone
@@ -858,8 +858,8 @@ function clearDagData() {
             instructionDiv.style.backgroundColor = instructionHighlightOff;
 
             // remove event listeners
-            instructionFn.off("mouseover", instructionHover);
-            instructionFn.off("mouseout", instructionHover);
+            instructionFn.off('mouseover', instructionHover);
+            instructionFn.off('mouseout', instructionHover);
         }
     }
     liveDagData = [];
@@ -876,40 +876,36 @@ function fillDagData(instruction, parents) {
         }
     }
 
-    var instructionFn = $("#instruction_" + instruction);
+    var instructionFn = $('#instruction_' + instruction);
     var instructionDiv = instructionFn[0];
     // set background color for each instruction in liveDagData
     // #c9cdff is "dark lavender"
     instructionDiv.style.backgroundColor = instructionHighlightOn;
 
     // Add event listener to map to the graph
-    instructionFn.on("mouseover", instructionHover);
-    instructionFn.on("mouseout", instructionHover);
+    instructionFn.on('mouseover', instructionHover);
+    instructionFn.on('mouseout', instructionHover);
 
     var operation = instructionDiv.innerText;
-    var opcode = instructionDiv.getElementsByClassName("operation")[0].innerText;
+    var opcode = instructionDiv.getElementsByClassName('operation')[0].innerText;
     // remove starting instruction prefix and operands suffix
-    operation = operation.substring(operation.indexOf(" ")+1, operation.indexOf(opcode) + opcode.length);
+    operation = operation.substring(operation.indexOf(' ') + 1, operation.indexOf(opcode) + opcode.length);
 
     // Add each item in text array to be its own line in dag node
     var text = [operation];
 
-    var resultTypeDiv = instructionDiv.getElementsByClassName("resultType");
+    var resultTypeDiv = instructionDiv.getElementsByClassName('resultType');
     if (resultTypeDiv.length != 0) {
-        assert(resultTypeDiv.length == 1, "More then 1 resultType found in " + instruction);
+        assert(resultTypeDiv.length == 1, 'More then 1 resultType found in ' + instruction);
         text.push(resultTypeDiv[0].innerText);
     }
 
-    var operandDivs = instructionDiv.getElementsByClassName("operand");
+    var operandDivs = instructionDiv.getElementsByClassName('operand');
     for (let i = 0; i < operandDivs.length; i++) {
         text.push(operandDivs[i].innerText);
     }
 
-    liveDagData.push({
-        "id": instruction,
-        "text" : text,
-        "parentIds": parents
-    });
+    liveDagData.push({'id': instruction, 'text': text, 'parentIds': parents});
 }
 
 // There can be cases where a phi loops back to itself such as:
@@ -927,7 +923,7 @@ function fillDagBackward(instruction, operand, entryCall) {
         seenDagNodesSet = new Set();
     }
     if (seenDagNodesSet.has(instruction)) {
-        return; // prevents infinite looping this function
+        return;  // prevents infinite looping this function
     }
     seenDagNodesSet.add(instruction);
 
@@ -988,9 +984,9 @@ function displayDagResult(result, instruction) {
 // @param instruction Assumes is already parsed to int
 function displayDebugString(instruction) {
     clearDagData();
-    d3.select("#dagSvg").selectAll("*").remove();
+    d3.select('#dagSvg').selectAll('*').remove();
 
-    debugStringDiv = document.getElementById("debugStringDiv");
+    debugStringDiv = document.getElementById('debugStringDiv');
     debugStringDiv.innerText = debugStringMap.get(instruction);
 }
 
@@ -999,8 +995,8 @@ function useOpNames(toggle) {
     // Map contains (42 -> "string")
     opNameMap.forEach(function(value, key, map) {
         // Each HTML element is id="id42"
-        var className = "id" + key;
-        var newValue = toggle ? ("%" + value) : ("%" + key);
+        var className = 'id' + key;
+        var newValue = toggle ? ('%' + value) : ('%' + key);
         for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
             document.getElementsByClassName(className)[i].innerText = newValue;
         }
@@ -1012,20 +1008,20 @@ function insertConstants(toggle) {
     // Map contains (42 -> "string")
     constantValues.forEach(function(value, key, map) {
         // Each HTML element is id="id42"
-        var className = "id" + key;
-        var newValue = toggle ? value : ("%" + key);
+        var className = 'id' + key;
+        var newValue = toggle ? value : ('%' + key);
         for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
             var element = document.getElementsByClassName(className)[i];
             // don't replace the result of the constant op itself
-            if (element.classList.contains("result")) {
+            if (element.classList.contains('result')) {
                 continue;
             }
             element.innerText = newValue;
             // give unique color from normal ids
             if (toggle) {
-                element.classList.add("insertConstant");
+                element.classList.add('insertConstant');
             } else {
-                element.classList.remove("insertConstant");
+                element.classList.remove('insertConstant');
             }
         }
     });
@@ -1035,44 +1031,36 @@ function insertConstants(toggle) {
 var dagColorMap = {};
 
 // create a tooltip
-var tooltipDiv = d3.select("#dagDiv")
-    .append("div")
-    .style("position", "absolute")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "2px")
-    .style("border-radius", "5px")
-    .style("padding", "5px");
+var tooltipDiv = d3.select('#dagDiv')
+                     .append('div')
+                     .style('position', 'absolute')
+                     .style('opacity', 0)
+                     .attr('class', 'tooltip')
+                     .style('background-color', 'white')
+                     .style('border', 'solid')
+                     .style('border-width', '2px')
+                     .style('border-radius', '5px')
+                     .style('padding', '5px');
 
 function tooltipHide() {
-    tooltipDiv.style("opacity", 0)
+    tooltipDiv.style('opacity', 0)
 }
 
 function dagNodeOnClick(node) {
     // Snaps to instruction text on click
-    var instructionDiv = document.getElementById("instruction_" + node.id);
+    var instructionDiv = document.getElementById('instruction_' + node.id);
     uncollapseInstruction(instructionDiv);
-    instructionDiv.scrollIntoView({block: "center"});
+    instructionDiv.scrollIntoView({block: 'center'});
 }
 
 // originalColor is optional param used when toggling off
 function dagNodeHighlight(nodeDiv, toggle, originalColor) {
     if (toggle) {
-        nodeDiv.select('rect')
-            .attr('fill', "white")
-            .attr('cursor', "pointer")
-            .attr('stroke-width', 3);
-        nodeDiv.select('text')
-            .attr('fill', "black")
-            .attr('cursor', "pointer");
+        nodeDiv.select('rect').attr('fill', 'white').attr('cursor', 'pointer').attr('stroke-width', 3);
+        nodeDiv.select('text').attr('fill', 'black').attr('cursor', 'pointer');
     } else {
-        nodeDiv.select('rect')
-            .attr('fill', originalColor)
-            .attr('stroke-width', 0);
-        nodeDiv.select('text')
-            .attr('fill', invertedTextColor(originalColor));
+        nodeDiv.select('rect').attr('fill', originalColor).attr('stroke-width', 0);
+        nodeDiv.select('text').attr('fill', invertedTextColor(originalColor));
     }
 }
 
@@ -1080,15 +1068,15 @@ function dagNodeHighlight(nodeDiv, toggle, originalColor) {
 function instructionHover(event) {
     var instructionDiv = event.target;
     // use the <div> to know if hoving internal dom element
-    if (instructionDiv.tagName != "DIV") {
+    if (instructionDiv.tagName != 'DIV') {
         instructionDiv = instructionDiv.parentElement;
     }
 
     var id = instructionDiv.id;
-    var instruction = parseInt(id.substring(id.indexOf("_")+1));
-    var nodeDiv = d3.select("#node" + instruction);
+    var instruction = parseInt(id.substring(id.indexOf('_') + 1));
+    var nodeDiv = d3.select('#node' + instruction);
 
-    if (event.type == "mouseover") {
+    if (event.type == 'mouseover') {
         instructionDiv.style.backgroundColor = instructionHighlightHover;
         dagNodeHighlight(nodeDiv, true, null);
     } else {
@@ -1104,31 +1092,27 @@ function dagNodeOnHover(node) {
 
     // Need to ignore the first index of the text since its not an operand
     var operandNames = instructionMap.get(node.data.id).operandNameList;
-    assert(operandNames.length >= (node.data.text.length - 1), "operandNames length is somehow larger than text length");
+    assert(operandNames.length >= (node.data.text.length - 1), 'operandNames length is somehow larger than text length');
 
-    var tooltipHtml = "";
+    var tooltipHtml = '';
     // skip result/opcode in text
     for (let i = 1; i < node.data.text.length; i++) {
-        tooltipHtml +=  "<span class=\"tooltipKey\">" + operandNames[i - 1] + "</span>";
-        tooltipHtml +=  ": ";
-        tooltipHtml +=  "<span class=\"tooltipValue\">" + node.data.text[i] + "</span><br>";
+        tooltipHtml += '<span class="tooltipKey">' + operandNames[i - 1] + '</span>';
+        tooltipHtml += ': ';
+        tooltipHtml += '<span class="tooltipValue">' + node.data.text[i] + '</span><br>';
     }
 
-    tooltipDiv
-        .style("opacity", 1)
-        .html(tooltipHtml);
+    tooltipDiv.style('opacity', 1).html(tooltipHtml);
 
     // highlighting of disassembled instructions
-    document.getElementById("instruction_" + node.id).style.backgroundColor = instructionHighlightHover;
+    document.getElementById('instruction_' + node.id).style.backgroundColor = instructionHighlightHover;
 }
 
 // Used to update tooltip while hovering over it
 function dagNodeOnMove(node) {
     // need small gap to prevent hovering over the tool tip itself
     // also the pointer gets in the way
-    tooltipDiv
-        .style("left", (event.clientX + 10) + "px")
-        .style("top", (event.clientY + 10) + "px");
+    tooltipDiv.style('left', (event.clientX + 10) + 'px').style('top', (event.clientY + 10) + 'px');
 }
 
 // Restore node original color
@@ -1139,7 +1123,7 @@ function dagNodeOffHover(node) {
     tooltipHide();
 
     // un-highlighting of disassembled instructions
-    document.getElementById("instruction_" + node.id).style.backgroundColor = instructionHighlightOn;
+    document.getElementById('instruction_' + node.id).style.backgroundColor = instructionHighlightOn;
 }
 
 function drawDag(dagData) {
@@ -1156,23 +1140,23 @@ function drawDag(dagData) {
     const dagLayoutWidth = rect.width * 5;
     const dagLayoutHeight = rect.height * 5;
 
-    const newLineSize = 17.0; // little padding
+    const newLineSize = 17.0;  // little padding
     const maxLines = 5;
 
-    const rectHeight = newLineSize * (maxLines + 0.5); // max lines and half a line to pad
-    const nodeHeight = rectHeight * 1.3; // 1.0 == no gap, 2.0 == full rect size for gap
-    const nodeWidth = 275; // shuold be able to fix everything
-    const rectWidth = nodeWidth * .85; // 1.0 == no gap, 0.5 == full rect size for gap
+    const rectHeight = newLineSize * (maxLines + 0.5);  // max lines and half a line to pad
+    const nodeHeight = rectHeight * 1.3;                // 1.0 == no gap, 2.0 == full rect size for gap
+    const nodeWidth = 275;                              // shuold be able to fix everything
+    const rectWidth = nodeWidth * .85;                  // 1.0 == no gap, 0.5 == full rect size for gap
 
     // Found that sugiyama is nicer to view, but unlike arquint it can't dynamically adjust height
     // Since 99% of instructions are capped at 5 lines, it is easier to make height set to 5 and
     // anything with more than 5 lines can be "..." and show in a tool tip
     const layout = d3.sugiyama()
-        .size([dagLayoutWidth, dagLayoutHeight])
-        .nodeSize([nodeWidth, nodeHeight])
-        .layering(d3.layeringSimplex())
-        .decross(d3.decrossTwoLayer().order(d3.twolayerOpt()))
-        .coord(d3.coordVert());
+                       .size([dagLayoutWidth, dagLayoutHeight])
+                       .nodeSize([nodeWidth, nodeHeight])
+                       .layering(d3.layeringSimplex())
+                       .decross(d3.decrossTwoLayer().order(d3.twolayerOpt()))
+                       .coord(d3.coordVert());
 
     var reader = d3.dagStratify();
     var dag = reader(dagData);
@@ -1190,17 +1174,16 @@ function drawDag(dagData) {
     });
 
     // Generate svg
-    const dagSvg = d3.select("#dagSvg");
+    const dagSvg = d3.select('#dagSvg');
 
     // clear previous SVG
-    dagSvg.selectAll("*").remove();
+    dagSvg.selectAll('*').remove();
 
     // SVG is offet by radius other the middle of node is cut in half at boundary
-    dagSvg
-        .attr("width", svgWidth)
-        .attr("height", svgHeight)
-        .attr("viewBox", `${-nodeWidth/2} ${-nodeHeight/2} ${svgWidth + nodeWidth} ${svgHeight + nodeHeight}`);
-    const defs = dagSvg.append('defs'); // For gradients
+    dagSvg.attr('width', svgWidth)
+        .attr('height', svgHeight)
+        .attr('viewBox', `${- nodeWidth / 2} ${- nodeHeight / 2} ${svgWidth + nodeWidth} ${svgHeight + nodeHeight}`);
+    const defs = dagSvg.append('defs');  // For gradients
 
     // Generate unique color for each node
     const steps = dag.size();
@@ -1210,10 +1193,7 @@ function drawDag(dagData) {
     });
 
     // How to draw edges
-    const line = d3.line()
-        .curve(d3.curveCatmullRom)
-        .x(data => data.x)
-        .y(data => data.y);
+    const line = d3.line().curve(d3.curveCatmullRom).x(data => data.x).y(data => data.y);
 
     // Plot edges
     dagSvg.append('g')
@@ -1221,49 +1201,49 @@ function drawDag(dagData) {
         .data(dag.links())
         .enter()
         .append('path')
-        .attr('d', ({ data }) => line(data.points))
+        .attr('d', ({data}) => line(data.points))
         .attr('fill', 'none')
         .attr('stroke-width', 3)
         .attr('stroke', ({source, target}) => {
-        const gradId = `${source.id}-${target.id}`;
-        const grad = defs.append('linearGradient')
-            .attr('id', gradId)
-            .attr('gradientUnits', 'userSpaceOnUse')
-            .attr('x1', source.x)
-            .attr('x2', target.x)
-            .attr('y1', source.y)
-            .attr('y2', target.y);
-        grad.append('stop').attr('offset', '0%').attr('stop-color', dagColorMap[source.id]);
-        grad.append('stop').attr('offset', '100%').attr('stop-color', dagColorMap[target.id]);
-        return `url(#${gradId})`;
+            const gradId = `${source.id}-${target.id}`;
+            const grad = defs.append('linearGradient')
+                             .attr('id', gradId)
+                             .attr('gradientUnits', 'userSpaceOnUse')
+                             .attr('x1', source.x)
+                             .attr('x2', target.x)
+                             .attr('y1', source.y)
+                             .attr('y2', target.y);
+            grad.append('stop').attr('offset', '0%').attr('stop-color', dagColorMap[source.id]);
+            grad.append('stop').attr('offset', '100%').attr('stop-color', dagColorMap[target.id]);
+            return `url(#${gradId})`;
         });
 
     // Select nodes
     const nodes = dagSvg.append('g')
-        .selectAll('g')
-        .data(dag.descendants())
-        .enter()
-        .append('g')
-        .attr('transform', ({x, y}) => `translate(${x}, ${y})`)
-        .attr('id', node => "node" + node.id)
-        .on("click", dagNodeOnClick)
-        .on("mousemove", dagNodeOnMove)
-        .on("mouseover", dagNodeOnHover)
-        .on("mouseout", dagNodeOffHover);
+                      .selectAll('g')
+                      .data(dag.descendants())
+                      .enter()
+                      .append('g')
+                      .attr('transform', ({x, y}) => `translate(${x}, ${y})`)
+                      .attr('id', node => 'node' + node.id)
+                      .on('click', dagNodeOnClick)
+                      .on('mousemove', dagNodeOnMove)
+                      .on('mouseover', dagNodeOnHover)
+                      .on('mouseout', dagNodeOffHover);
 
     nodes.append('rect')
         .attr('width', rectWidth)
         .attr('height', rectHeight)
-        .attr('x', -(rectWidth/2))
-        .attr('y', -(rectHeight/2))
+        .attr('x', -(rectWidth / 2))
+        .attr('y', -(rectHeight / 2))
         .attr('fill', node => dagColorMap[node.id])
-        .attr('stroke', "black");
+        .attr('stroke', 'black');
 
-        // Add text to nodes
+    // Add text to nodes
     nodes.append('text')
         .attr('font-weight', 'bold')
         .attr('text-anchor', 'middle')
-        .attr('y', -(rectHeight/2)) // puts text aligned with top of rect
+        .attr('y', -(rectHeight / 2))  // puts text aligned with top of rect
         .attr('fill', node => invertedTextColor(dagColorMap[node.id]))
         .selectAll('tspan')
         .data(function(data) {
@@ -1275,15 +1255,15 @@ function drawDag(dagData) {
         .text(function(data, i, array) {
             if (i >= maxLines) {
                 // empty tspan
-                return "";
+                return '';
             } else if ((i == maxLines - 1) && (array.length > maxLines)) {
                 // If there are more than max lines, mark the last line (zero indexed)
-                return "...";
+                return '...';
             } else {
                 return data;
             }
         })
-        .attr('x', "0")
+        .attr('x', '0')
         .attr('dy', function() {
             return newLineSize;
         });
