@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 The Khronos Group Inc.
+// Copyright (c) 2021-2023 The Khronos Group Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,7 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+"use strict";
+
 // Grab all DOM objects
+
 const disassembleDiv = document.getElementById("disassembleDiv");
 
 // Tracking Information per parse
@@ -62,7 +65,6 @@ function parseBinaryStream(binary) {
     // translate to Uint32 array to match each SPIR-V dword
     assert(binary.byteLength % 4 == 0, "File is not 4 byte (32 bit) aligned, are you sure this is a binary SPIR-V file?");
     const module = new Uint32Array(binary);
-    delete binary;
 
     assert(module.length >= 5, "module less than 5 dwords which is the size of the header");
 
@@ -129,17 +131,17 @@ function parseBinaryStream(binary) {
         // Find other preFunction opcodes to create more labels
         if (insertedDebug == false && instructionInfo.class == "Debug") {
             insertedDebug = true;
-            commentDiv = document.createElement("div");
+            let commentDiv = document.createElement("div");
             addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "debug", "Debug Information");
             currentInstructionDiv = commentDiv;
         } else if (insertedAnnotation == false && instructionInfo.class == "Annotation") {
             insertedAnnotation = true;
-            commentDiv = document.createElement("div");
+            let commentDiv = document.createElement("div");
             addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "annotations", "Annotations");
             currentInstructionDiv = commentDiv;
         } else if (insertedType == false && instructionInfo.class == "Type-Declaration") {
             insertedType = true;
-            commentDiv = document.createElement("div");
+            let commentDiv = document.createElement("div");
             addCollapsibleWrapper(commentDiv, disassembleDiv, "preFunction", "types", "Types, variables and constants");
             currentInstructionDiv = commentDiv;
         }
