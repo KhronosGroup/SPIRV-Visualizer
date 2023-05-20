@@ -26,8 +26,8 @@ function fileSelected(data, filename) {
 
     // Toggle div to be displayed
     // remove the rest as currently not support reloading spir-v without page refresh
-    var preLoad = document.getElementById("preLoad");
-    var filePrompt = document.getElementById("filePrompt");
+    let preLoad = document.getElementById("preLoad");
+    let filePrompt = document.getElementById("filePrompt");
     if (preLoad) {
         preLoad.remove();
     }
@@ -85,8 +85,8 @@ dropArea.addEventListener('dragover', dragOverHandler, false);
 
 function idOnClick(event) {
     // Returns DOMTokenList of all classes
-    var classList = event.target.classList;
-    var parent = event.target.parentElement;
+    let classList = event.target.classList;
+    let parent = event.target.parentElement;
 
     var id = undefined;
     // find "idN" where "N" is the SPIR-V ID value
@@ -101,7 +101,7 @@ function idOnClick(event) {
 
     // id will be of "instruction_x"
     var instruction = parseInt(parent.id.substring(parent.id.indexOf("_")+1));
-    var hasResult = classList.contains("result");
+    let hasResult = classList.contains("result");
 
     if (hasResult) {
         displayDagResult(id, instruction);
@@ -113,14 +113,14 @@ function idOnClick(event) {
 
 function operationOnClick(event) {
     var opcode = event.target.innerText;
-    var parent = event.target.parentElement;
+    let parent = event.target.parentElement;
     // id will be of "instruction_x"
     var instruction = parseInt(parent.id.substring(parent.id.indexOf("_")+1));
     displayDagOpcode(opcode, instruction);
 }
 
 function debugStringOnClick(event) {
-    var parent = event.target.parentElement;
+    let parent = event.target.parentElement;
     // id will be of "instruction_x"
     var instruction = parseInt(parent.id.substring(parent.id.indexOf("_")+1));
     displayDebugString(instruction);
@@ -135,8 +135,8 @@ function resetSettings() {
 // Sends all checkboxes out to handlers
 $(document).ready(function(){
     $('input[type="checkbox"]').click(function(){
-        var box = $(this)[0].name;
-        var checked = $(this).prop("checked");
+        let box = $(this)[0].name;
+        let checked = $(this).prop("checked");
 
         // dispatches each type of option to be handled
         if (box == "opNames") {

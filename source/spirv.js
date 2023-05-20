@@ -151,7 +151,7 @@ function loadSpirvJson() {
 };
 
 function opcodeHasResultType(opcode) {
-    var instructionInfo = spirvInstruction.get(opcode);
+    let instructionInfo = spirvInstruction.get(opcode);
     if (instructionInfo.operands) {
         // IdResultType is always first operand listed
         if (instructionInfo.operands[0].kind == "IdResultType") {
@@ -162,7 +162,7 @@ function opcodeHasResultType(opcode) {
 }
 
 function opcodeHasResult(opcode) {
-    var instructionInfo = spirvInstruction.get(opcode);
+    let instructionInfo = spirvInstruction.get(opcode);
     if (instructionInfo.operands) {
         const checkOperands = Math.min(instructionInfo.operands.length, 2);
         // IdResult is always first or second operand listed
@@ -184,13 +184,13 @@ function validateHeader(header) {
 
 // @param words Slice of array of words in instruction
 function getLiteralString(words) {
-    var result = "";
+    let result = "";
     for (let i = 0; i < words.length; i++) {
-        var word = words[i];
-        var char0 = (word >> 24) & 0xFF;
-        var char1 = (word >> 16) & 0xFF;
-        var char2 = (word >> 8) & 0xFF;
-        var char3 = word & 0xFF;
+        let word = words[i];
+        let char0 = (word >> 24) & 0xFF;
+        let char1 = (word >> 16) & 0xFF;
+        let char2 = (word >> 8) & 0xFF;
+        let char3 = word & 0xFF;
 
         result += char3 ? String.fromCharCode(char3) : "";
         result += char2 ? String.fromCharCode(char2) : "";

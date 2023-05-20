@@ -467,7 +467,7 @@ function parseBinaryStream(binary) {
                             lowBits = new Array(32 - lowBits.length).fill('0').join("") + lowBits;
                             if (width == 2) {
                                 // 64-bit Float
-                                var highBits = module[i+4].toString(2);
+                                let highBits = module[i+4].toString(2);
                                 highBits = new Array(32 - highBits.length).fill('0').join("") + highBits;
                                 bits = highBits + lowBits;
                                 operandValue = parseFloatString(bits);
@@ -849,8 +849,8 @@ function clearDagData() {
     document.getElementById("debugStringDiv").innerText = "";
 
     for (let i = 0; i < liveDagData.length; i++) {
-        var instructionFn = $("#instruction_" + liveDagData[i].id);
-        var instructionDiv = instructionFn[0];
+        let instructionFn = $("#instruction_" + liveDagData[i].id);
+        let instructionDiv = instructionFn[0];
 
         // on switching files these dives are already gone
         if (instructionDiv) {
