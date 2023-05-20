@@ -55,6 +55,7 @@ body {
     color: #f1f1f1;
 }
 
+#collapseAllDiv { grid-area: collapseAllDiv; }
 #largerTextDiv { grid-area: largerTextArea; }
 #opNamesDiv { grid-area: opNamesArea; }
 #insertConstantsDiv { grid-area: insertConstantsArea; }
@@ -65,7 +66,7 @@ body {
 
     display: grid;
     grid-template-areas:
-    'largerTextArea opNamesArea insertConstantsArea';
+    'collapseAllDiv largerTextArea opNamesArea insertConstantsArea';
 }
 
 #settingsRight {
