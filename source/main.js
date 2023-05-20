@@ -17,15 +17,10 @@
 
 const disassembleDiv = document.getElementById('disassembleDiv');
 
-// Tracking Information per parse
-var functionList = [];
-var blockList = [];
 // Main map of all items with instruction index as key
 var instructionMap = new Map();
 // A mapping of the resultID to the instruction index
 var resultToInstructionMap = new Map();
-// Map of where all branch/switches jump too. Value is array of Label IDs
-var branchMap = new Map();
 // 2D array with key being an ID
 //    value is array of all instructions that use it
 var idConsumers = [];
@@ -35,21 +30,15 @@ var opNameMap = new Map();
 var debugStringMap = new Map();
 // Mapping of what to display if inserting constant values
 var constantValues = new Map();
-// Mapping of resultId to extended instructions literal name
-var resultToExtInstructionName = new Map();
 
 // Ensures consecutive loads are cleared
 function resetTracking() {
-    functionList = [];
-    blockList = [];
     instructionMap = new Map();
     resultToInstructionMap = new Map();
-    branchMap = new Map();
     idConsumers = [];
     opNameMap = new Map();
     debugStringMap = new Map();
     constantValues = new Map();
-    resultToExtInstructionName = new Map();
 }
 
 // @param binary ArrayBuffer of spirv module binary file
@@ -100,6 +89,11 @@ function parseBinaryStream(binary) {
     var insertedDebug = false;
     var insertedAnnotation = false;
     var insertedType = false;
+
+    // Map of where all branch/switches jump too. Value is array of Label IDs
+    var branchMap = new Map();
+    // Mapping of resultId to extended instructions literal name
+    var resultToExtInstructionName = new Map();
 
     // There is a 2 pass system through the stream
     //   First pass: Setup all the DOM elements
@@ -169,7 +163,6 @@ function parseBinaryStream(binary) {
                     break;
                 case spirvEnum.Op.OpFunctionEnd:
                     currentFunction.end = instructionCount;
-                    functionList.push(currentFunction);
 
                     // Label has ended and need to add last instruction
                     currentInstructionDiv = currentFunctionDiv
@@ -199,7 +192,6 @@ function parseBinaryStream(binary) {
                 case spirvEnum.Op.OpUnreachable:
                 case spirvEnum.Op.TerminateInvocation:
                     currentBlock.end = instructionCount;
-                    blockList.push(currentBlock);
                     break;
             };
 
@@ -699,7 +691,7 @@ function parseBinaryStream(binary) {
                 document.getElementById('label-' + mergeBlock).className += (' loopMergeBlock-' + headerBlock);
                 document.getElementById('label-' + continueBlock).className += (' loopContinueBlock-' + headerBlock);
 
-                mergeBlockResult = instructionMap.get(mergeBlock).result
+                var mergeBlockResult = instructionMap.get(mergeBlock).result
                 for (let key of branchMap.keys()) {
                     if (branchMap.get(key).includes(mergeBlockResult)) {
                         block = instructionMap.get(key).block
