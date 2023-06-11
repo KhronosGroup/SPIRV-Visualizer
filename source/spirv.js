@@ -13,50 +13,40 @@
 // limitations under the License.
 'use strict';
 
-//
-// All logic related to dealing with SPIR-V concepts
-//
+var spirv = {
+    // When all the needed JSON grammar files load, let the UI know
+    JsonIsReady : false,
 
-// These are globals that hold subsets of the grammar file so it can be
-// more easily and efficiently accessed
-var spirvMeta = {};                // meta data for parsing
-var spirvVersion = 'Unknown';      // version of grammar file
-var spirvEnum = {};                // enum values for opcodes and operands
-var spirvInstruction = new Map();  // details information about opcodes
-var spirvOperand = new Map();      // details information about operands in 'operand_kinds' section
-var spirvExtInst = new Map();      // Same mapping as spirvInstruction, but for each grammar file
-var spirvExtOperand = new Map();   // Same mapping as spirvOperand, but for each grammar file
+    // Common Helper Functions/Utils
+    validateHeader : undefined,
+    getLiteralString : undefined,
 
-// TODO When #611 is resolved should not need this
-const ExtInstTypeGlslStd450 = 0;
-const ExtInstTypeOpenCLStd = 1;
-const ExtInstTypeNonSemanitcDebugPrintf = 2;
-const ExtInstTypeNonSemanitcClspvReflection = 3;
-const ExtInstTypeDebugInfo = 4;
-const ExtInstTypeOpenCLDebug100 = 5;
+    Version : "0.0.0",
+    Meta : {},
 
-spirvExtInst.set(ExtInstTypeGlslStd450, new Map());
-spirvExtInst.set(ExtInstTypeOpenCLStd, new Map());
-spirvExtInst.set(ExtInstTypeNonSemanitcDebugPrintf, new Map());
-spirvExtInst.set(ExtInstTypeNonSemanitcClspvReflection, new Map());
-spirvExtInst.set(ExtInstTypeDebugInfo, new Map());
-spirvExtInst.set(ExtInstTypeOpenCLDebug100, new Map());
+    Enums : {}, // enum values for opcodes and operands
+    Instructions : new Map(),  // details information about opcodes
+    Operands : new Map(), // details information about operands in 'operand_kinds' section
 
-// Not all extended sets have a mapping for operand kinds
-spirvExtOperand.set(ExtInstTypeOpenCLDebug100, new Map());
-spirvExtOperand.set(ExtInstTypeDebugInfo, new Map());
+    NameToOpcode : new Map(),  // [ 'OpCode' string : opcode number id ]
 
-// When all the needed JSON grammar files load, let the UI know
-var spirvJsonReady = false;
-var spirvJsonRefCount = 0;
+    ExtInstructions : new Map(), // Same mapping as Instructions, but for each grammar file
+    ExtOperands : new Map(),   // Same mapping as Operands, but for each grammar file
+    getExtInstructions : undefined,
+
+    OpcodesWithResultType : [],
+    OpcodesWithResult : [],
+};
+
 // number of json files needed to be loaded
-const spirvJsonRefTotal = 8;
+var jsonRefCount = 0;
+const jsonRefTotal = 8;
 
 function spirvJsonLoaded() {
-    spirvJsonRefCount++;
+    jsonRefCount++;
 
-    if (spirvJsonRefCount == spirvJsonRefTotal) {
-        spirvJsonReady = true;
+    if (jsonRefCount == jsonRefTotal) {
+        spirv.JsonIsReady = true;
 
         if (TEST_SUITE == true) {
             // Kick off test suite
@@ -77,113 +67,158 @@ function spirvJsonLoaded() {
             // Prompt user to select file
             document.getElementById('preLoad').style.display = 'none';
             document.getElementById('filePrompt').style.visibility = 'visible';
-            document.getElementById('spirvVersion').innerText = spirvVersion;
+            document.getElementById('spirvVersion').innerText = spirv.Version;
         }
     }
 }
 
-function loadSpirvJson() {
-    const spirvHeaderPath = 'SPIRV-Headers/include/spirv/unified1/'
+// TODO When internal SPIR-V spec issue #611 is resolved should not need this
+const ExtInstTypeGlslStd450 = 0;
+const ExtInstTypeOpenCLStd = 1;
+const ExtInstTypeNonSemanitcDebugPrintf = 2;
+const ExtInstTypeNonSemanitcClspvReflection = 3;
+const ExtInstTypeDebugInfo = 4;
+const ExtInstTypeOpenCLDebug100 = 5;
+
+spirv.getExtInstructions = function(extendedName) {
+    if (extendedName.includes("GLSL.std.450")) {
+        return spirv.ExtInstructions.get(ExtInstTypeGlslStd450);
+    } else if (extendedName.includes("OpenCL.std")) {
+        return spirv.ExtInstructions.get(ExtInstTypeOpenCLStd);
+    } else if (extendedName.includes("NonSemantic.DebugPrintf")) {
+        return spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugPrintf);
+    } else if (extendedName.includes("NonSemantic.ClspvReflection")) {
+        return spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection);
+    } else if (extendedName.includes("DebugInfo")) {
+        return spirv.ExtInstructions.get(ExtInstTypeDebugInfo);
+    } else if (extendedName.includes("OpenCL.DebugInfo.100")) {
+        return spirv.ExtInstructions.get(ExtInstTypeOpenCLDebug100);
+    } else {
+        assert(false,'Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
+    }
+}
+
+function loadSpirvJson(grammarPath) {
     // C Header equivalent
-    $.getJSON(spirvHeaderPath + 'spirv.json', function(json) {
-        spirvMeta = json.spv.meta;
+    $.getJSON(grammarPath + 'spirv.json', function(json) {
+        spirv.Meta = json.spv.meta;
         for (let i = 0; i < json.spv.enum.length; i++) {
-            spirvEnum[json.spv.enum[i].Name] = json.spv.enum[i].Values;
+            spirv.Enums[json.spv.enum[i].Name] = json.spv.enum[i].Values;
         }
         spirvJsonLoaded();
     });
-    $.getJSON(spirvHeaderPath + 'spirv.core.grammar.json', function(json) {
-        spirvVersion = json.major_version + '.' + json.minor_version + '.' + json.revision;
+}
+
+function loadCoreGrammar(grammarPath) {
+    $.getJSON(grammarPath + 'spirv.core.grammar.json', function(json) {
+        spirv.Version = json.major_version + "." + json.minor_version + "." + json.revision;
         // put in map as need faster way to lookup then search large array each time
         for (let i = 0; i < json.instructions.length; i++) {
-            spirvInstruction.set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirvOperand.set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
+            const opcode = json.instructions[i].opcode;
+            spirv.NameToOpcode.set(json.instructions[i].opname, opcode)
+            spirv.Instructions.set(opcode, json.instructions[i]);
 
-    // Extended sets
-    // TODO - If loading speed becomes an issue, can load only when found in OpExtInstImport
-    $.getJSON(spirvHeaderPath + 'extinst.glsl.std.450.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeGlslStd450).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-    $.getJSON(spirvHeaderPath + 'extinst.opencl.std.100.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeOpenCLStd).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-    $.getJSON(spirvHeaderPath + 'extinst.nonsemantic.debugprintf.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeNonSemanitcDebugPrintf).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-    $.getJSON(spirvHeaderPath + 'extinst.nonsemantic.clspvreflection.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeNonSemanitcClspvReflection).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-    $.getJSON(spirvHeaderPath + 'extinst.debuginfo.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirvExtOperand.get(ExtInstTypeDebugInfo).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
-    $.getJSON(spirvHeaderPath + 'extinst.opencl.debuginfo.100.grammar.json', function(json) {
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirvExtInst.get(ExtInstTypeOpenCLDebug100).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirvExtOperand.get(ExtInstTypeOpenCLDebug100).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
-};
+            if (json.instructions[i].operands) {
+                // IdResultType is always first operand listed
+                if (json.instructions[i].operands[0].kind == "IdResultType") {
+                    spirv.OpcodesWithResultType.push(opcode);
+                }
 
-function opcodeHasResultType(opcode) {
-    let instructionInfo = spirvInstruction.get(opcode);
-    if (instructionInfo.operands) {
-        // IdResultType is always first operand listed
-        if (instructionInfo.operands[0].kind == 'IdResultType') {
-            return true;
-        }
-    }
-    return false;
-}
-
-function opcodeHasResult(opcode) {
-    let instructionInfo = spirvInstruction.get(opcode);
-    if (instructionInfo.operands) {
-        const checkOperands = Math.min(instructionInfo.operands.length, 2);
-        // IdResult is always first or second operand listed
-        for (let i = 0; i < checkOperands; i++) {
-            if (instructionInfo.operands[i].kind == 'IdResult') {
-                return true;
+                // IdResult is always first or second operand listed
+                const checkOperands = Math.min(json.instructions[i].operands.length, 2);
+                for (let j = 0; j < checkOperands; j++) {
+                    if (json.instructions[i].operands[j].kind == "IdResult") {
+                        spirv.OpcodesWithResult.push(opcode);
+                    }
+                }
             }
         }
-    }
-    return false;
+
+        for (let i = 0; i < json.operand_kinds.length; i++) {
+            spirv.Operands.set(json.operand_kinds[i].kind, json.operand_kinds[i]);
+        }
+        spirvJsonLoaded();
+    });
+}
+
+// Extended Instruction sets
+// Note: If loading speed becomes an issue, can load only when found in OpExtInstImport
+function loadExtInst(grammarPath) {
+    $.getJSON(grammarPath + 'extinst.glsl.std.450.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeGlslStd450, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeGlslStd450).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(grammarPath + 'extinst.opencl.std.100.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeOpenCLStd, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeOpenCLStd).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(grammarPath + 'extinst.nonsemantic.debugprintf.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugPrintf, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugPrintf).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(grammarPath + 'extinst.nonsemantic.clspvreflection.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcClspvReflection, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(grammarPath + 'extinst.debuginfo.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeDebugInfo, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+
+        spirv.ExtOperands.set(ExtInstTypeDebugInfo, new Map());
+        for (let i = 0; i < json.operand_kinds.length; i++) {
+            spirv.ExtOperands.get(ExtInstTypeDebugInfo).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(grammarPath + 'extinst.opencl.debuginfo.100.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeOpenCLDebug100, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeOpenCLDebug100).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+
+        spirv.ExtOperands.set(ExtInstTypeOpenCLDebug100, new Map());
+        for (let i = 0; i < json.operand_kinds.length; i++) {
+            spirv.ExtOperands.get(ExtInstTypeOpenCLDebug100).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
+        }
+        spirvJsonLoaded();
+    });
+}
+
+// Init into Loading SPIR-V grammar files
+function loadSpirv(spirvHeaderPath) {
+    loadSpirvJson(spirvHeaderPath);
+    loadCoreGrammar(spirvHeaderPath);
+    loadExtInst(spirvHeaderPath);
 }
 
 // @param header Uint32Array with 5 elements in it
-function validateHeader(header) {
-    assert(header[0] == spirvMeta.MagicNumber, 'Magic Number doesn\'t match, are you sure this is a binary SPIR-V file?');
-    assert(header[1] <= spirvMeta.Version, 'SPIR-V Headers are older than version of module');
+spirv.validateHeader = function(header) {
+    assert(header[0] == spirv.Meta.MagicNumber, 'Magic Number doesn\'t match, are you sure this is a binary SPIR-V file?');
+    assert(header[1] <= spirv.Meta.Version, 'SPIR-V Headers are older than version of module');
     assert(header[4] == 0, 'Only support schema 0 currently');
 }
 
 // @param words Slice of array of words in instruction
-function getLiteralString(words) {
+spirv.getLiteralString = function(words) {
     let result = '';
     for (let i = 0; i < words.length; i++) {
         let word = words[i];
