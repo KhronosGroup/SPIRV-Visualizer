@@ -15,7 +15,8 @@
 
 // Grab all DOM objects
 
-const disassembleDiv = document.getElementById('disassembleDiv');
+var displayDiv = document.getElementById('disassembleDisplayDiv');
+var inputDiv = document.getElementById('disassembleInputDiv');
 
 // Main map of all items with instruction index as key
 var instructionMap = new Map();
@@ -46,7 +47,7 @@ function parseBinaryStream(binary) {
     const performanceStart = performance.now();
 
     // Clear div from any previous run
-    disassembleDiv.innerHTML = '';
+    displayDiv.innerHTML = '';
     // clear previous SVG
     d3.select('#dagSvg').selectAll('*').remove();
     resetTracking();
@@ -74,10 +75,10 @@ function parseBinaryStream(binary) {
     // all instructions before first function are by themselves in "preFunciton" which is broken into 4 sections
     // Set preFunction div the same way as a normal function
     var preFunctionDiv = document.createElement('div');
-    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, 'preFunction', 'modeSetting', 'Mode Setting');
+    addCollapsibleWrapper(preFunctionDiv, displayDiv, 'preFunction', 'modeSetting', 'Mode Setting');
 
     // div hierarchy
-    // disassembleDiv -> function -> label -> instructions
+    // displayDiv -> function -> label -> instructions
     var currentInstructionDiv = preFunctionDiv;
     var currentFunctionDiv = undefined;
 
@@ -117,17 +118,17 @@ function parseBinaryStream(binary) {
         if (insertedDebug == false && instructionInfo.class == 'Debug') {
             insertedDebug = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'debug', 'Debug Information');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'debug', 'Debug Information');
             currentInstructionDiv = commentDiv;
         } else if (insertedAnnotation == false && instructionInfo.class == 'Annotation') {
             insertedAnnotation = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'annotations', 'Annotations');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'annotations', 'Annotations');
             currentInstructionDiv = commentDiv;
         } else if (insertedType == false && instructionInfo.class == 'Type-Declaration') {
             insertedType = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'types', 'Types, variables and constants');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'types', 'Types, variables and constants');
             currentInstructionDiv = commentDiv;
         }
 
@@ -154,7 +155,7 @@ function parseBinaryStream(binary) {
                     currentFunction.start = instructionCount;
 
                     var newDiv = document.createElement('div');
-                    addCollapsibleWrapper(newDiv, disassembleDiv, 'function', instructionCount, 'Function ' + instructionCount);
+                    addCollapsibleWrapper(newDiv, displayDiv, 'function', instructionCount, 'Function ' + instructionCount);
 
                     currentFunctionDiv = newDiv;
                     currentInstructionDiv = newDiv;

@@ -43,6 +43,18 @@ var spirv = {
     OpcodesWithResult : [],
 };
 
+const SPV_ENV_UNIVERSAL_1_0 = 0x00_01_00_00;
+const SPV_ENV_UNIVERSAL_1_1 = 0x00_01_01_00;
+const SPV_ENV_UNIVERSAL_1_2 = 0x00_01_02_00;
+const SPV_ENV_UNIVERSAL_1_3 = 0x00_01_03_00;
+const SPV_ENV_UNIVERSAL_1_4 = 0x00_01_04_00;
+const SPV_ENV_UNIVERSAL_1_5 = 0x00_01_05_00;
+const SPV_ENV_UNIVERSAL_1_6 = 0x00_01_06_00;
+const SPV_ENV_VULKAN_1_0 = 0x00_01_00_00;
+const SPV_ENV_VULKAN_1_1 = 0x00_01_01_00;
+const SPV_ENV_VULKAN_1_2 = 0x00_01_03_00;
+const SPV_ENV_VULKAN_1_3 = 0x00_01_05_00;
+
 // number of json files needed to be loaded
 var jsonRefCount = 0;
 const jsonRefTotal = 8;

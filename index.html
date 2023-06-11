@@ -52,7 +52,10 @@
             </div>
         </div>
         <div id="moduleData">
-            <div class="mainColumn" id="disassembleDiv"></div>
+            <!-- Both these take left side of screen, only one is visiable at a time -->
+            <textarea class="mainColumn" id="disassembleInputDiv"></textarea>
+            <div class="mainColumn" id="disassembleDisplayDiv"></div>
+
             <div class="mainColumn" id="dagDiv">
                 <!-- used when wanting to view debug string text -->
                 <div id="debugStringDiv"></div>
@@ -69,6 +72,8 @@
                     Based on SPIR-V grammar <span id="spirvVersion"></span>
                     <h2>Select SPIR-V binary file to load</h2>
                     <input type="file" id="fileSelector">
+                    <h2>OR</h2>
+                    <h2>Paste SPIR-V disassembly on the left (and press enter)</h2>
                     <br><br><hr>
                     <h1>How to use</h1>
                     <img src="doc/instructions_0.png" alt="instructions_0.png">
@@ -84,6 +89,7 @@
   <script src="source/utils.js"></script>
   <script src="source/input.js"></script>
   <script src="source/spirv.js"></script>
+  <script src="source/assembler.js"></script>
   <script src="source/main.js"></script>
   </body>
 </html>

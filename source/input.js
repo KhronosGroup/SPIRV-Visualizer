@@ -19,6 +19,7 @@
 
 // Load in file
 function fileSelected(data, filename) {
+    toggleDisassemblyInput(false);
     if (filename == undefined) {
         filename = 'unknown';
     }
@@ -44,7 +45,7 @@ const fileSelectorTop = document.getElementById('fileSelectorTop');
 function fileSelect(event) {
     const reader = new FileReader();
     reader.onload = function() {
-        var filename = (event.target.files) ? event.target.files[0].name : undefined;
+        const filename = (event.target.files) ? event.target.files[0].name : undefined;
         fileSelected(reader.result, filename);
     };
     reader.readAsArrayBuffer(event.target.files[0]);
@@ -74,7 +75,7 @@ function dropHandler(event) {
     }
     const reader = new FileReader();
     reader.onload = function() {
-        filename = (file) ? file.name : undefined;
+        const filename = (file) ? file.name : undefined;
         fileSelected(reader.result, filename);
     };
     reader.readAsArrayBuffer(file);
@@ -132,8 +133,31 @@ function resetSettings() {
     document.getElementById('insertConstants').checked = false;
 }
 
+function toggleDisassemblyInput(turnOn) {
+    if (turnOn) {
+        displayDiv.style.display = 'none';
+        inputDiv.style.display = 'inline-block';
+    } else {
+        displayDiv.style.display = 'inline-block';
+        inputDiv.style.display = 'none';
+        inputDiv.innerHTML = ''
+    }
+}
+
 // Sends all checkboxes out to handlers
 $(document).ready(function() {
+    // On start up
+    toggleDisassemblyInput(true);
+
+    $('#disassembleInputDiv').on('keypress', function(event) {
+        // Prevents shift+enter from starting event
+        if (event.which === 13 && !event.shiftKey) {
+            event.preventDefault();
+            const spirvBinary = assemble(inputDiv.value);
+            fileSelected(spirvBinary, 'disassembled text')
+        }
+    });
+
     $('input[type="checkbox"]').click(function() {
         let box = $(this)[0].name;
         let checked = $(this).prop('checked');
