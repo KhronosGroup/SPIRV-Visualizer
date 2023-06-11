@@ -28,7 +28,11 @@ body {
     overflow: scroll;
 }
 
-#disassembleDiv {
+#disassembleInputDiv {
+    width: 42%; /* only seem to get 95% total to use */
+}
+
+#disassembleDisplayDiv {
     width: 42%; /* only seem to get 95% total to use */
 }
 

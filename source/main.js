@@ -15,7 +15,8 @@
 
 // Grab all DOM objects
 
-const disassembleDiv = document.getElementById('disassembleDiv');
+var displayDiv = document.getElementById('disassembleDisplayDiv');
+var inputDiv = document.getElementById('disassembleInputDiv');
 
 // Main map of all items with instruction index as key
 var instructionMap = new Map();
@@ -46,7 +47,7 @@ function parseBinaryStream(binary) {
     const performanceStart = performance.now();
 
     // Clear div from any previous run
-    disassembleDiv.innerHTML = '';
+    displayDiv.innerHTML = '';
     // clear previous SVG
     d3.select('#dagSvg').selectAll('*').remove();
     resetTracking();
@@ -57,7 +58,7 @@ function parseBinaryStream(binary) {
 
     assert(module.length >= 5, 'module less than 5 dwords which is the size of the header');
 
-    validateHeader(module.slice(0, 5));
+    spirv.validateHeader(module.slice(0, 5));
     const maxIdBound = module[3];
     for (let i = 0; i < maxIdBound; i++) {
         idConsumers[i] = [];
@@ -74,10 +75,10 @@ function parseBinaryStream(binary) {
     // all instructions before first function are by themselves in "preFunciton" which is broken into 4 sections
     // Set preFunction div the same way as a normal function
     var preFunctionDiv = document.createElement('div');
-    addCollapsibleWrapper(preFunctionDiv, disassembleDiv, 'preFunction', 'modeSetting', 'Mode Setting');
+    addCollapsibleWrapper(preFunctionDiv, displayDiv, 'preFunction', 'modeSetting', 'Mode Setting');
 
     // div hierarchy
-    // disassembleDiv -> function -> label -> instructions
+    // displayDiv -> function -> label -> instructions
     var currentInstructionDiv = preFunctionDiv;
     var currentFunctionDiv = undefined;
 
@@ -92,8 +93,6 @@ function parseBinaryStream(binary) {
 
     // Map of where all branch/switches jump too. Value is array of Label IDs
     var branchMap = new Map();
-    // Mapping of resultId to extended instructions literal name
-    var resultToExtInstructionName = new Map();
 
     // There is a 2 pass system through the stream
     //   First pass: Setup all the DOM elements
@@ -102,16 +101,16 @@ function parseBinaryStream(binary) {
 
     // First pass
     for (let i = 5; i < module.length;) {
-        var instruction = module[i];
-        var instructionLength = instruction >> spirvMeta.WordCountShift;
-        var opcode = instruction & spirvMeta.OpCodeMask;
+        const instruction = module[i];
+        const instructionLength = instruction >> spirv.Meta.WordCountShift;
+        const opcode = instruction & spirv.Meta.OpCodeMask;
 
         // Get type and result according to instruction layout
-        var hasResultType = opcodeHasResultType(opcode);
-        var hasResult = opcodeHasResult(opcode);
-        var opcodeResultType = hasResultType ? module[i + 1] : undefined;
-        var opcodeResult = hasResult ? (hasResultType ? module[i + 2] : module[i + 1]) : undefined;
-        var instructionInfo = spirvInstruction.get(opcode);
+        const hasResultType = spirv.OpcodesWithResultType.includes(opcode);
+        const hasResult = spirv.OpcodesWithResult.includes(opcode);
+        const opcodeResultType = hasResultType ? module[i + 1] : undefined;
+        const opcodeResult = hasResult ? (hasResultType ? module[i + 2] : module[i + 1]) : undefined;
+        var instructionInfo = spirv.Instructions.get(opcode);
         // Holds operands that are an id (non-literals)
         var operandIdList = [];
 
@@ -119,17 +118,17 @@ function parseBinaryStream(binary) {
         if (insertedDebug == false && instructionInfo.class == 'Debug') {
             insertedDebug = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'debug', 'Debug Information');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'debug', 'Debug Information');
             currentInstructionDiv = commentDiv;
         } else if (insertedAnnotation == false && instructionInfo.class == 'Annotation') {
             insertedAnnotation = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'annotations', 'Annotations');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'annotations', 'Annotations');
             currentInstructionDiv = commentDiv;
         } else if (insertedType == false && instructionInfo.class == 'Type-Declaration') {
             insertedType = true;
             let commentDiv = document.createElement('div');
-            addCollapsibleWrapper(commentDiv, disassembleDiv, 'preFunction', 'types', 'Types, variables and constants');
+            addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'types', 'Types, variables and constants');
             currentInstructionDiv = commentDiv;
         }
 
@@ -138,11 +137,11 @@ function parseBinaryStream(binary) {
             // Manage indent level from nested cfg
             // Need to be done prior to label getting assigned CSS style
             switch (opcode) {
-                case spirvEnum.Op.OpLoopMerge:
-                case spirvEnum.Op.OpSelectionMerge:
+                case spirv.Enums.Op.OpLoopMerge:
+                case spirv.Enums.Op.OpSelectionMerge:
                     indentStack.push(module[i + 1]);
                     break;
-                case spirvEnum.Op.OpLabel:
+                case spirv.Enums.Op.OpLabel:
                     if (indentStack[indentStack.length - 1] == module[i + 1]) {
                         indentStack.pop();
                     }
@@ -152,22 +151,22 @@ function parseBinaryStream(binary) {
 
             // Map the boundaries for functions and blocks
             switch (opcode) {
-                case spirvEnum.Op.OpFunction:
+                case spirv.Enums.Op.OpFunction:
                     currentFunction.start = instructionCount;
 
                     var newDiv = document.createElement('div');
-                    addCollapsibleWrapper(newDiv, disassembleDiv, 'function', instructionCount, 'Function ' + instructionCount);
+                    addCollapsibleWrapper(newDiv, displayDiv, 'function', instructionCount, 'Function ' + instructionCount);
 
                     currentFunctionDiv = newDiv;
                     currentInstructionDiv = newDiv;
                     break;
-                case spirvEnum.Op.OpFunctionEnd:
+                case spirv.Enums.Op.OpFunctionEnd:
                     currentFunction.end = instructionCount;
 
                     // Label has ended and need to add last instruction
                     currentInstructionDiv = currentFunctionDiv
                     break;
-                case spirvEnum.Op.OpLabel:
+                case spirv.Enums.Op.OpLabel:
                     currentBlock.start = instructionCount;
                     currentBlock.function = currentFunction.start;
 
@@ -183,14 +182,14 @@ function parseBinaryStream(binary) {
 
                     currentInstructionDiv = newDiv;
                     break;
-                case spirvEnum.Op.OpBranch:
-                case spirvEnum.Op.OpBranchConditional:
-                case spirvEnum.Op.OpSwitch:
-                case spirvEnum.Op.OpReturn:
-                case spirvEnum.Op.OpReturnValue:
-                case spirvEnum.Op.OpKill:
-                case spirvEnum.Op.OpUnreachable:
-                case spirvEnum.Op.TerminateInvocation:
+                case spirv.Enums.Op.OpBranch:
+                case spirv.Enums.Op.OpBranchConditional:
+                case spirv.Enums.Op.OpSwitch:
+                case spirv.Enums.Op.OpReturn:
+                case spirv.Enums.Op.OpReturnValue:
+                case spirv.Enums.Op.OpKill:
+                case spirv.Enums.Op.OpUnreachable:
+                case spirv.Enums.Op.TerminateInvocation:
                     currentBlock.end = instructionCount;
                     break;
             };
@@ -198,14 +197,14 @@ function parseBinaryStream(binary) {
             // Build branching map
             var branchDestinations = [];
             switch (opcode) {
-                case spirvEnum.Op.OpBranch:
+                case spirv.Enums.Op.OpBranch:
                     branchDestinations.push(module[i + 1]);
                     break;
-                case spirvEnum.Op.OpBranchConditional:
+                case spirv.Enums.Op.OpBranchConditional:
                     branchDestinations.push(module[i + 2]);
                     branchDestinations.push(module[i + 3]);
                     break;
-                case spirvEnum.Op.OpSwitch:
+                case spirv.Enums.Op.OpSwitch:
                     branchDestinations.push(module[i + 2]);
                     for (let operand = 4; operand < instructionLength; operand += 2) {
                         branchDestinations.push(module[i + operand]);
@@ -218,23 +217,9 @@ function parseBinaryStream(binary) {
         }
 
         // Map extended instruction to result hashmap
-        if (opcode == spirvEnum.Op.OpExtInstImport) {
-            var extendedName = getLiteralString(module.slice(i + 2, i + instructionLength));
-            if (extendedName == 'GLSL.std.450') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeGlslStd450);
-            } else if (extendedName == 'OpenCL.std') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLStd);
-            } else if (extendedName.startsWith('NonSemantic.DebugPrintf')) {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcDebugPrintf);
-            } else if (extendedName.startsWith('NonSemantic.ClspvReflection')) {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcClspvReflection);
-            } else if (extendedName == 'DebugInfo') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeDebugInfo);
-            } else if (extendedName == 'OpenCL.DebugInfo.100') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLDebug100);
-            } else {
-                alert('Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
-            }
+        if (opcode == spirv.Enums.Op.OpExtInstImport) {
+            var extendedName = spirv.getLiteralString(module.slice(i + 2, i + instructionLength));
+            spirv.setResultToExtImportMap(extendedName, opcodeResult);
         }
 
         // Handles all aspect of disassembling the module
@@ -250,7 +235,7 @@ function parseBinaryStream(binary) {
                 resultToInstructionMap.set(opcodeResult, instructionCount);
             }
 
-            instructionString += ' <a class="operation">' + mapValueToEnumKey(spirvEnum.Op, opcode) + '</a>'
+            instructionString += ' <a class="operation">' + mapValueToEnumKey(spirv.Enums.Op, opcode) + '</a>'
 
             if (hasResultType == true) {
                 instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');
@@ -377,10 +362,10 @@ function parseBinaryStream(binary) {
                     }
 
                 } else if (kind == 'LiteralString') {
-                    var literalString = getLiteralString(module.slice(i + operandOffset, i + instructionLength));
+                    var literalString = spirv.getLiteralString(module.slice(i + operandOffset, i + instructionLength));
                     // Source strings can be unhelpfully long, so hide by default
-                    if (opcode == spirvEnum.Op.OpSource || opcode == spirvEnum.Op.OpSourceContinued ||
-                        opcode == spirvEnum.Op.OpModuleProcessed) {
+                    if (opcode == spirv.Enums.Op.OpSource || opcode == spirv.Enums.Op.OpSourceContinued ||
+                        opcode == spirv.Enums.Op.OpModuleProcessed) {
                         debugStringMap.set(instructionCount, literalString);
                         instructionString += ' <span class="operand literal debugString">'
                         instructionString += 'click to view'
@@ -402,19 +387,18 @@ function parseBinaryStream(binary) {
 
                 } else if (kind == 'LiteralExtInstInteger') {
                     assert(
-                        opcode == spirvEnum.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
+                        opcode == spirv.Enums.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
                     // single word literal but from extended instruction set
-                    var set = module[i + 3];
-                    var extendedSet = resultToExtInstructionName.get(set);
+                    const setId = module[i + 3];
 
                     // This will have the while loop use the extended grammar
-                    extendedOperandInfo = spirvExtInst.get(extendedSet).get(operand);
+                    extendedOperandInfo = spirv.getExtInstructions(setId).get(operand);
                     instructionString += ' ' + createLiteralHtmlString(extendedOperandInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
 
                 } else if (kind == 'LiteralSpecConstantOpInteger') {
-                    specConstantOpInfo = spirvInstruction.get(module[i + operandOffset]);
+                    specConstantOpInfo = spirv.Instructions.get(module[i + operandOffset]);
                     instructionString += ' ' + createLiteralHtmlString(specConstantOpInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
@@ -427,10 +411,10 @@ function parseBinaryStream(binary) {
                     // Handle any opcodes that have context dependent operands
                     var width = 1;
                     var operandValue = operand;
-                    if (opcode == spirvEnum.Op.OpConstant || opcode == spirvEnum.Op.OpSpecConstant) {
+                    if (opcode == spirv.Enums.Op.OpConstant || opcode == spirv.Enums.Op.OpSpecConstant) {
                         // Result Type must be a scalar integer type or floating-point type.
                         var contextInstruction = instructionMap.get(resultToInstructionMap.get(module[i + 1]));
-                        if (contextInstruction.opcode == spirvEnum.Op.OpTypeInt) {
+                        if (contextInstruction.opcode == spirv.Enums.Op.OpTypeInt) {
                             var signedness = module[contextInstruction.moduleOffset + 3];
                             if (signedness == 1) {
                                 // JS way to bring uint32 to int32
@@ -447,7 +431,7 @@ function parseBinaryStream(binary) {
                                 // use toString to get rid of suffix from types of BigInt
                                 operandValue = ((BigInt(operandValueHigh) << BigInt(32)) + BigInt(operandValueLow)).toString();
                             }
-                        } else if (contextInstruction.opcode == spirvEnum.Op.OpTypeFloat) {
+                        } else if (contextInstruction.opcode == spirv.Enums.Op.OpTypeFloat) {
                             // 4 instrutions is a normal 32 bit width, extra instruction length is another byte
                             width = instructionLength - 3;
                             assert(width <= 2, 'parsing ' + 32 * width + ' bit float is not supported');
@@ -472,7 +456,7 @@ function parseBinaryStream(binary) {
                     }
 
                     var insertValue = operandValue;
-                    if (opcode == spirvEnum.Op.OpSpecConstant) {
+                    if (opcode == spirv.Enums.Op.OpSpecConstant) {
                         insertValue = 'spec(' + insertValue + ')';
                     }
                     constantValues.set(module[i + 2], insertValue);
@@ -495,7 +479,7 @@ function parseBinaryStream(binary) {
                     while (operandOffset < instructionLength) {
                         var nextOperand = module[i + operandOffset];
                         var nextNextOperand = module[i + operandOffset + 1];
-                        if (opcode == spirvEnum.Op.OpSwitch) {
+                        if (opcode == spirv.Enums.Op.OpSwitch) {
                             instructionString += ' (Case ';
                             instructionString += createLiteralHtmlString(nextOperand);
                             instructionString += ' : ';
@@ -508,7 +492,7 @@ function parseBinaryStream(binary) {
                             operandNameList.push('Case');
                             operandNameList.push('Id');
                         }
-                        if (opcode == spirvEnum.Op.OpGroupMemberDecorate) {
+                        if (opcode == spirv.Enums.Op.OpGroupMemberDecorate) {
                             instructionString += ' (';
                             instructionString += createIdHtmlString(nextOperand, 'operand');
                             instructionString += ' : ';
@@ -521,7 +505,7 @@ function parseBinaryStream(binary) {
                             operandNameList.push('Id ' + quantifierIndex);
                             operandNameList.push('Member ' + quantifierIndex);
                         }
-                        if (opcode == spirvEnum.Op.OpPhi) {
+                        if (opcode == spirv.Enums.Op.OpPhi) {
                             instructionString += ' (';
                             instructionString += createIdHtmlString(nextOperand, 'operand');
                             instructionString += ' : ';
@@ -540,12 +524,11 @@ function parseBinaryStream(binary) {
                         quantifierIndex++;
                     }
                 } else {
-                    operandInfo = spirvOperand.get(kind);
+                    operandInfo = spirv.Operands.get(kind);
                     // If extended instruction might need to check grammar file
                     if (!operandInfo && extendedOperandInfo) {
-                        var set = module[i + 3];
-                        var extendedSet = resultToExtInstructionName.get(set);
-                        operandInfo = spirvExtOperand.get(extendedSet).get(kind);
+                        var setId = module[i + 3];
+                        operandInfo = spirv.getExtOperands(setId).get(kind);
                     }
                     assert(operandInfo != undefined, 'Unknown grammar \'kind\' of ' + kind);
 
@@ -613,8 +596,8 @@ function parseBinaryStream(binary) {
         }
 
         // Handles all decorations and names
-        if (opcode == spirvEnum.Op.OpName) {
-            var name = getLiteralString(module.slice(i + 2, i + instructionLength));
+        if (opcode == spirv.Enums.Op.OpName) {
+            var name = spirv.getLiteralString(module.slice(i + 2, i + instructionLength));
             // strings can be empty according to specs definition of Literals
             // to prevent looking like a bug, replace with some more visual
             if (name == '') {
@@ -626,31 +609,31 @@ function parseBinaryStream(binary) {
 
         // Take Constant-Creation class opcodes and save const value to be displayed
         switch (opcode) {
-            case spirvEnum.Op.OpConstantTrue:
+            case spirv.Enums.Op.OpConstantTrue:
                 constantValues.set(module[i + 2], 'True');
                 break;
-            case spirvEnum.Op.OpConstantFalse:
+            case spirv.Enums.Op.OpConstantFalse:
                 constantValues.set(module[i + 2], 'False');
                 break;
-            case spirvEnum.Op.OpConstantNull:
+            case spirv.Enums.Op.OpConstantNull:
                 constantValues.set(module[i + 2], 'Null');
                 break;
-            case spirvEnum.Op.OpSpecConstantTrue:
+            case spirv.Enums.Op.OpSpecConstantTrue:
                 constantValues.set(module[i + 2], 'spec(True)');
                 break;
-            case spirvEnum.Op.OpSpecConstantFalse:
+            case spirv.Enums.Op.OpSpecConstantFalse:
                 constantValues.set(module[i + 2], 'spec(False)');
                 break;
             // value was found already above in LiteralContextDependentNumber check
-            case spirvEnum.Op.OpSpecConstant:
-            case spirvEnum.Op.OpConstant:
+            case spirv.Enums.Op.OpSpecConstant:
+            case spirv.Enums.Op.OpConstant:
             // not supported
-            case spirvEnum.Op.OpConstantComposite:
-            case spirvEnum.Op.OpConstantSampler:
-            case spirvEnum.Op.OpSpecConstantComposite:
-            case spirvEnum.Op.OpSpecConstantOp:
-            case spirvEnum.Op.OpConstantCompositeContinuedINTEL:
-            case spirvEnum.Op.OpSpecConstantCompositeContinuedINTEL:
+            case spirv.Enums.Op.OpConstantComposite:
+            case spirv.Enums.Op.OpConstantSampler:
+            case spirv.Enums.Op.OpSpecConstantComposite:
+            case spirv.Enums.Op.OpSpecConstantOp:
+            case spirv.Enums.Op.OpConstantCompositeContinuedINTEL:
+            case spirv.Enums.Op.OpSpecConstantCompositeContinuedINTEL:
                 break;
         };
 
@@ -674,16 +657,16 @@ function parseBinaryStream(binary) {
     instructionCount = 0;
 
     // Second pass
-    for (var i = 5; i < module.length;) {
-        var instruction = module[i];
-        var length = instruction >> spirvMeta.WordCountShift;
-        var opcode = instruction & spirvMeta.OpCodeMask;
+    for (let i = 5; i < module.length;) {
+        const instruction = module[i];
+        const length = instruction >> spirv.Meta.WordCountShift;
+        const opcode = instruction & spirv.Meta.OpCodeMask;
 
         var currentInstruction = instructionMap.get(instructionCount)
 
         // Add extra class to blocks for CFG
         switch (opcode) {
-            case spirvEnum.Op.OpLoopMerge:
+            case spirv.Enums.Op.OpLoopMerge:
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
                 var continueBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 2]))).block;
@@ -700,14 +683,14 @@ function parseBinaryStream(binary) {
                 }
 
                 break;
-            case spirvEnum.Op.OpSelectionMerge:
+            case spirv.Enums.Op.OpSelectionMerge:
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
                 document.getElementById('label-' + headerBlock).className += (' selectionHeaderBlock-' + headerBlock);
                 document.getElementById('label-' + mergeBlock).className += (' selectionMergeBlock-' + headerBlock);
                 break;
-            case spirvEnum.Op.OpReturn:
-            case spirvEnum.Op.OpReturnValue:
+            case spirv.Enums.Op.OpReturn:
+            case spirv.Enums.Op.OpReturnValue:
                 var block = currentInstruction.block;
                 document.getElementById('label-' + block).className += ' returnBlock-' + block;
                 break;
@@ -716,8 +699,8 @@ function parseBinaryStream(binary) {
         // Holds all instructions that have resultID for each operand
         // store now instead of generating at DAG creation time
         // inverse of idConsumers
-        var parentInstructions = [];
-        var operandIdList = currentInstruction.operandIdList;
+        let parentInstructions = [];
+        const operandIdList = currentInstruction.operandIdList;
         for (let i = 0; i < operandIdList.length; i++) {
             parentInstructions.push(resultToInstructionMap.get(operandIdList[i]));
         }
@@ -879,7 +862,7 @@ function fillDagData(instruction, parents) {
     instructionFn.on('mouseout', instructionHover);
 
     var operation = instructionDiv.innerText;
-    var opcode = instructionDiv.getElementsByClassName('operation')[0].innerText;
+    const opcode = instructionDiv.getElementsByClassName('operation')[0].innerText;
     // remove starting instruction prefix and operands suffix
     operation = operation.substring(operation.indexOf(' ') + 1, operation.indexOf(opcode) + opcode.length);
 
