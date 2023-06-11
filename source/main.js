@@ -92,8 +92,6 @@ function parseBinaryStream(binary) {
 
     // Map of where all branch/switches jump too. Value is array of Label IDs
     var branchMap = new Map();
-    // Mapping of resultId to extended instructions literal name
-    var resultToExtInstructionName = new Map();
 
     // There is a 2 pass system through the stream
     //   First pass: Setup all the DOM elements
@@ -220,21 +218,7 @@ function parseBinaryStream(binary) {
         // Map extended instruction to result hashmap
         if (opcode == spirv.Enums.Op.OpExtInstImport) {
             var extendedName = spirv.getLiteralString(module.slice(i + 2, i + instructionLength));
-            if (extendedName == 'GLSL.std.450') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeGlslStd450);
-            } else if (extendedName == 'OpenCL.std') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLStd);
-            } else if (extendedName.startsWith('NonSemantic.DebugPrintf')) {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcDebugPrintf);
-            } else if (extendedName.startsWith('NonSemantic.ClspvReflection')) {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeNonSemanitcClspvReflection);
-            } else if (extendedName == 'DebugInfo') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeDebugInfo);
-            } else if (extendedName == 'OpenCL.DebugInfo.100') {
-                resultToExtInstructionName.set(opcodeResult, ExtInstTypeOpenCLDebug100);
-            } else {
-                alert('Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
-            }
+            spirv.setResultToExtImportMap(extendedName, opcodeResult);
         }
 
         // Handles all aspect of disassembling the module
@@ -404,11 +388,10 @@ function parseBinaryStream(binary) {
                     assert(
                         opcode == spirv.Enums.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
                     // single word literal but from extended instruction set
-                    var set = module[i + 3];
-                    var extendedSet = resultToExtInstructionName.get(set);
+                    const setId = module[i + 3];
 
                     // This will have the while loop use the extended grammar
-                    extendedOperandInfo = spirv.ExtInstructions.get(extendedSet).get(operand);
+                    extendedOperandInfo = spirv.getExtInstructions(setId).get(operand);
                     instructionString += ' ' + createLiteralHtmlString(extendedOperandInfo.opname);
                     operandNameList.push(operandName);
                     operandOffset++;
@@ -543,9 +526,8 @@ function parseBinaryStream(binary) {
                     operandInfo = spirv.Operands.get(kind);
                     // If extended instruction might need to check grammar file
                     if (!operandInfo && extendedOperandInfo) {
-                        var set = module[i + 3];
-                        var extendedSet = resultToExtInstructionName.get(set);
-                        operandInfo = spirv.ExtOperands.get(extendedSet).get(kind);
+                        var setId = module[i + 3];
+                        operandInfo = spirv.getExtOperands(setId).get(kind);
                     }
                     assert(operandInfo != undefined, 'Unknown grammar \'kind\' of ' + kind);
 

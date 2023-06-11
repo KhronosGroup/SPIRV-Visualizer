@@ -21,6 +21,7 @@ var spirv = {
     validateHeader : undefined,
     getLiteralString : undefined,
 
+    GrammarPath : "",
     Version : "0.0.0",
     Meta : {},
 
@@ -32,7 +33,11 @@ var spirv = {
 
     ExtInstructions : new Map(), // Same mapping as Instructions, but for each grammar file
     ExtOperands : new Map(),   // Same mapping as Operands, but for each grammar file
+    // To save everyone having to build this map themselve, provide helpers
+    ResultToExtImport : new Map(), // Map result ID of OpExtInstImport to actual
+    setResultToExtImportMap : undefined,
     getExtInstructions : undefined,
+    getExtOperands : undefined,
 
     OpcodesWithResultType : [],
     OpcodesWithResult : [],
@@ -80,27 +85,37 @@ const ExtInstTypeNonSemanitcClspvReflection = 3;
 const ExtInstTypeDebugInfo = 4;
 const ExtInstTypeOpenCLDebug100 = 5;
 
-spirv.getExtInstructions = function(extendedName) {
+// Call at OpExtInstImport to save mapping, retrieve with getExtInstructions/getExtOperands
+spirv.setResultToExtImportMap = function(extendedName, resultId) {
     if (extendedName.includes("GLSL.std.450")) {
-        return spirv.ExtInstructions.get(ExtInstTypeGlslStd450);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeGlslStd450);
     } else if (extendedName.includes("OpenCL.std")) {
-        return spirv.ExtInstructions.get(ExtInstTypeOpenCLStd);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeOpenCLStd);
     } else if (extendedName.includes("NonSemantic.DebugPrintf")) {
-        return spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugPrintf);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcDebugPrintf);
     } else if (extendedName.includes("NonSemantic.ClspvReflection")) {
-        return spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcClspvReflection);
     } else if (extendedName.includes("DebugInfo")) {
-        return spirv.ExtInstructions.get(ExtInstTypeDebugInfo);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeDebugInfo);
     } else if (extendedName.includes("OpenCL.DebugInfo.100")) {
-        return spirv.ExtInstructions.get(ExtInstTypeOpenCLDebug100);
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeOpenCLDebug100);
     } else {
         assert(false,'Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
     }
 }
+spirv.getExtInstructions = function(setId) {
+    const id = spirv.ResultToExtImport.get(setId);
+    return spirv.ExtInstructions.get(id);
+}
 
-function loadSpirvJson(grammarPath) {
+spirv.getExtOperands = function(setId) {
+    const id = spirv.ResultToExtImport.get(setId);
+    return spirv.ExtOperands.get(id);
+}
+
+function loadSpirvJson() {
     // C Header equivalent
-    $.getJSON(grammarPath + 'spirv.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'spirv.json', function(json) {
         spirv.Meta = json.spv.meta;
         for (let i = 0; i < json.spv.enum.length; i++) {
             spirv.Enums[json.spv.enum[i].Name] = json.spv.enum[i].Values;
@@ -109,8 +124,8 @@ function loadSpirvJson(grammarPath) {
     });
 }
 
-function loadCoreGrammar(grammarPath) {
-    $.getJSON(grammarPath + 'spirv.core.grammar.json', function(json) {
+function loadCoreGrammar() {
+    $.getJSON(spirv.GrammarPath + 'spirv.core.grammar.json', function(json) {
         spirv.Version = json.major_version + "." + json.minor_version + "." + json.revision;
         // put in map as need faster way to lookup then search large array each time
         for (let i = 0; i < json.instructions.length; i++) {
@@ -142,9 +157,8 @@ function loadCoreGrammar(grammarPath) {
 }
 
 // Extended Instruction sets
-// Note: If loading speed becomes an issue, can load only when found in OpExtInstImport
-function loadExtInst(grammarPath) {
-    $.getJSON(grammarPath + 'extinst.glsl.std.450.grammar.json', function(json) {
+function loadExtInstImport() {
+    $.getJSON(spirv.GrammarPath + 'extinst.glsl.std.450.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeGlslStd450, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeGlslStd450).set(json.instructions[i].opcode, json.instructions[i]);
@@ -152,7 +166,7 @@ function loadExtInst(grammarPath) {
         spirvJsonLoaded();
     });
 
-    $.getJSON(grammarPath + 'extinst.opencl.std.100.grammar.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'extinst.opencl.std.100.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeOpenCLStd, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeOpenCLStd).set(json.instructions[i].opcode, json.instructions[i]);
@@ -160,7 +174,7 @@ function loadExtInst(grammarPath) {
         spirvJsonLoaded();
     });
 
-    $.getJSON(grammarPath + 'extinst.nonsemantic.debugprintf.grammar.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.debugprintf.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugPrintf, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugPrintf).set(json.instructions[i].opcode, json.instructions[i]);
@@ -168,7 +182,7 @@ function loadExtInst(grammarPath) {
         spirvJsonLoaded();
     });
 
-    $.getJSON(grammarPath + 'extinst.nonsemantic.clspvreflection.grammar.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.clspvreflection.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeNonSemanitcClspvReflection, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection).set(json.instructions[i].opcode, json.instructions[i]);
@@ -176,7 +190,7 @@ function loadExtInst(grammarPath) {
         spirvJsonLoaded();
     });
 
-    $.getJSON(grammarPath + 'extinst.debuginfo.grammar.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'extinst.debuginfo.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeDebugInfo, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
@@ -189,7 +203,7 @@ function loadExtInst(grammarPath) {
         spirvJsonLoaded();
     });
 
-    $.getJSON(grammarPath + 'extinst.opencl.debuginfo.100.grammar.json', function(json) {
+    $.getJSON(spirv.GrammarPath + 'extinst.opencl.debuginfo.100.grammar.json', function(json) {
         spirv.ExtInstructions.set(ExtInstTypeOpenCLDebug100, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeOpenCLDebug100).set(json.instructions[i].opcode, json.instructions[i]);
@@ -205,9 +219,10 @@ function loadExtInst(grammarPath) {
 
 // Init into Loading SPIR-V grammar files
 function loadSpirv(spirvHeaderPath) {
-    loadSpirvJson(spirvHeaderPath);
-    loadCoreGrammar(spirvHeaderPath);
-    loadExtInst(spirvHeaderPath);
+    spirv.GrammarPath = spirvHeaderPath;
+    loadSpirvJson();
+    loadCoreGrammar();
+    loadExtInstImport();
 }
 
 // @param header Uint32Array with 5 elements in it
