@@ -112,7 +112,7 @@ spirv.setResultToExtImportMap = function(extendedName, resultId) {
     } else if (extendedName.includes("OpenCL.DebugInfo.100")) {
         spirv.ResultToExtImport.set(resultId, ExtInstTypeOpenCLDebug100);
     } else {
-        assert(false,'Full support for ' + extendedName + ' has not been added. Good chance things might break. Please report!');
+        console.log('Warning: Full support for ' + extendedName + ' has not been added. Good chance things might break.');
     }
 }
 spirv.getExtInstructions = function(setId) {
