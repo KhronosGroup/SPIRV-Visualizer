@@ -392,8 +392,10 @@ function parseBinaryStream(binary) {
                     const setId = module[i + 3];
 
                     // This will have the while loop use the extended grammar
-                    extendedOperandInfo = spirv.getExtInstructions(setId).get(operand);
-                    instructionString += ' ' + createLiteralHtmlString(extendedOperandInfo.opname);
+                    const extInstructionSet = spirv.getExtInstructions(setId);
+                    // There can be custom extended instructions starting with SPIR-V 1.6
+                    const extOpname = (extInstructionSet == undefined) ? operand : extInstructionSet.get(operand).opname;
+                    instructionString += ' ' + createLiteralHtmlString(extOpname);
                     operandNameList.push(operandName);
                     operandOffset++;
 

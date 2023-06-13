@@ -26,7 +26,6 @@ function assemble(spirvText, version) {
     let bitWidthIntMap = new Map();    // map [ %stringName, width ] for OpConstants
     let bitWidthFloatMap = new Map();  // map [ %stringName, width ] for OpConstants
 
-    let extInstructionSets = new Map();
     let lastOpExtInst = 0;
 
     // SPIR-V Header
@@ -100,7 +99,7 @@ function assemble(spirvText, version) {
 
         // Special instructions need to track
         if (opname == 'OpExtInstImport') {
-            extInstructionSets.set(idMap.get(line[0]), spirv.getExtInstructions(line[3]));
+            spirv.setResultToExtImportMap(line[3], idMap.get(line[0]));
         } else if (opname == 'OpExtInst') {
             lastOpExtInst = idMap.get(line[4]);
         } else if (opname == 'OpTypeInt') {
@@ -124,7 +123,13 @@ function assemble(spirvText, version) {
                 }
                 lineIndex++
             } else if (kind == 'LiteralExtInstInteger') {
-                const extInstructionSet = extInstructionSets.get(lastOpExtInst);
+                const extInstructionSet = spirv.getExtInstructions(lastOpExtInst);
+                if (extInstructionSet == undefined) {
+                    // There can be custom extended instructions starting with SPIR-V 1.6
+                    words.push(parseInt(line[lineIndex++]));
+                    return;
+                }
+
                 for (let [extOpcode, extInstruction] of extInstructionSet) {
                     if (extInstruction.opname == line[lineIndex]) {
                         lineIndex++
@@ -138,6 +143,9 @@ function assemble(spirvText, version) {
                         return;
                     }
                 }
+                // If not found, likely the value is just the literal, not a string
+                words.push(parseInt(line[lineIndex++]));
+
             } else if (kind == 'LiteralInteger' || kind == 'LiteralSpecConstantOpInteger') {
                 words.push(parseInt(line[lineIndex++]));
             } else if (kind == 'LiteralContextDependentNumber') {
