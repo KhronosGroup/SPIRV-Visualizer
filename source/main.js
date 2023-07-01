@@ -406,9 +406,9 @@ function parseBinaryStream(binary) {
                     operandOffset++;
                     specConstantOpIndex = 0;
                     // Start after results as they inherit from parent instruction
-                    specConstantOpIndex += opcodeHasResultType(specConstantOpInfo.opcode) ? 1 : 0;
-                    specConstantOpIndex += opcodeHasResult(specConstantOpInfo.opcode) ? 1 : 0;
-
+                    specConstantOpIndex += spirv.OpcodesWithResultType.includes(specConstantOpInfo.opcode) ? 1 : 0;
+                    specConstantOpIndex += spirv.OpcodesWithResult.includes(specConstantOpInfo.opcode) ? 1 : 0;
+                    
                 } else if (kind == 'LiteralContextDependentNumber') {
                     // Handle any opcodes that have context dependent operands
                     var width = 1;
