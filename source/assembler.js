@@ -146,8 +146,18 @@ function assemble(spirvText, version) {
                 // If not found, likely the value is just the literal, not a string
                 words.push(parseInt(line[lineIndex++]));
 
-            } else if (kind == 'LiteralInteger' || kind == 'LiteralSpecConstantOpInteger') {
+            } else if (kind == 'LiteralInteger') {
                 words.push(parseInt(line[lineIndex++]));
+            } else if (kind == 'LiteralSpecConstantOpInteger') {
+                const specOpcode = spirv.NameToOpcode.get('Op' + line[lineIndex++])
+                words.push(specOpcode);
+
+                const specInstruction = spirv.Instructions.get(specOpcode);
+                // Don't need result or result type
+                for (let i = 2; i < specInstruction.operands.length; i++) {
+                    const specKind = specInstruction.operands[i].kind;
+                    GetOperand(specKind);
+                }
             } else if (kind == 'LiteralContextDependentNumber') {
                 const typeId = idMap.get(line[lineIndex - 1])
                 const bitWidthInt = parseInt(bitWidthIntMap.get(typeId));
