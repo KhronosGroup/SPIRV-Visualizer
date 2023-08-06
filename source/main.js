@@ -443,7 +443,7 @@ function parseBinaryStream(binary) {
                                 // 64-bit Float
                                 let highBits = module[i + 4].toString(2);
                                 highBits = new Array(32 - highBits.length).fill('0').join('') + highBits;
-                                bits = highBits + lowBits;
+                                let bits = highBits + lowBits;
                                 operandValue = parseFloatString(bits);
                             } else {
                                 // 32-bit float
