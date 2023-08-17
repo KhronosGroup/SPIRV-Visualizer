@@ -43,6 +43,8 @@ function assemble(spirvText, version) {
     spirvText.split('\n').forEach(line => {
         // If there is a Literal String, capture it to use later
         let literalString = undefined;
+        // CTS dumps it shaders with HTML Entities
+        line = line.replaceAll('&quot;', '"');
         const quoteStart = line.indexOf('"')
         let extraWords = 0;
         if (quoteStart != -1) {
@@ -55,7 +57,7 @@ function assemble(spirvText, version) {
         }
 
         // regex to remove all duplicated white space
-        // This makes the 'line' be an array of all words\
+        // This makes the 'line' be an array of all words.
         line = line.trim().replace(/\s{2,}/g, ' ').split(' ');
         if (line.length == 1 && line[0] == '') {
             return;
