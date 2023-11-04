@@ -49,11 +49,17 @@ function assemble(spirvText, version) {
         let extraWords = 0;
         if (quoteStart != -1) {
             const quoteEnd = line.lastIndexOf('"');
-            literalString = line.substring(quoteStart + 1, quoteEnd) + '\0';
+            if (quoteStart == quoteEnd) {
+                // this is a multi-line string
+                assert(false, 'Multi-line string not supported yet for assembler');
+            }
+
+            let replaceString = line.substring(quoteStart + 1, quoteEnd);
+            literalString = replaceString + '\0';
             // Substract 1 because there is already 1 word accounted for the string in line
             extraWords = Math.ceil(literalString.length / 4) - 1;
-            // Just need to replace whitespaces here so the split() works as intended
-            line.replace(literalString, '/\s+/g, \'\'');
+            // mark the string operand with something that takes 1 index after split()
+            line = line.replace('"' + replaceString + '"', 'REPLACE');
         }
 
         // regex to remove all duplicated white space
@@ -101,7 +107,8 @@ function assemble(spirvText, version) {
 
         // Special instructions need to track
         if (opname == 'OpExtInstImport') {
-            spirv.setResultToExtImportMap(line[3], idMap.get(line[0]));
+            let importName = literalString.substring(0, literalString.length - 1);  // remove null terminator
+            spirv.setResultToExtImportMap(importName, idMap.get(line[0]));
         } else if (opname == 'OpExtInst') {
             lastOpExtInst = idMap.get(line[4]);
         } else if (opname == 'OpTypeInt') {
@@ -204,6 +211,8 @@ function assemble(spirvText, version) {
                     const word = bytes[i + 3] << 24 | bytes[i + 2] << 16 | bytes[i + 1] << 8 | bytes[i + 0];
                     words.push(word);
                 }
+                // all strings are reduced to a single line index
+                lineIndex++;
             } else {
                 const operandInfo = spirv.Operands.get(kind);
                 if (!operandInfo.enumerants) {

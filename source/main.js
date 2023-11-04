@@ -963,7 +963,7 @@ function displayDebugString(instruction) {
     clearDagData();
     d3.select('#dagSvg').selectAll('*').remove();
 
-    debugStringDiv = document.getElementById('debugStringDiv');
+    let debugStringDiv = document.getElementById('debugStringDiv');
     debugStringDiv.innerText = debugStringMap.get(instruction);
 }
 
