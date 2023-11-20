@@ -20,6 +20,20 @@ Details of the layout of a SPIR-V Instruction can be found at
 https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#_physical_layout_of_a_spir_v_module_and_instruction
 */
 function assemble(spirvText, version) {
+
+    // Check if text is really a encoded uint32_t hex array
+    if (spirvText.trimStart().startsWith('0x07230203')) {
+        let words = [];
+        let input = spirvText.split(',');
+        for (const word of input) {
+            let value = parseInt(word);
+            if (!isNaN(value)) {
+                words.push(value);
+            }
+        }
+        return new Uint32Array(words);
+    }
+
     let encoder = new TextEncoder();
 
     let idMap = new Map();             // map text name to binary ID used [ %stringName, %1 ]
