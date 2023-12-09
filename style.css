@@ -159,6 +159,10 @@ a.id:hover, a.operation:hover {
     color : darkgreen;
 }
 
+.resultType {
+    color : #5900bd;
+}
+
 .type {
     color : darkgreen;
 }
