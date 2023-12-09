@@ -226,3 +226,7 @@ a.id:hover, a.operation:hover {
     /* Since divs can be greater than 100% of 100vh */
     max-height: inherit;
 }
+
+#module-info {
+    text-align: center;
+}

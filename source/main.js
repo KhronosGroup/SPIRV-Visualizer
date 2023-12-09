@@ -64,6 +64,12 @@ function parseBinaryStream(binary) {
         idConsumers[i] = [];
     }
 
+    var infoDiv = document.createElement('div');
+    const version = ((module[1] >> 16) & 0xff).toString() + '.' + ((module[1] >> 8) & 0xff).toString();
+    infoDiv.setAttribute('id', 'module-info');
+    infoDiv.innerHTML = 'SPIR-V ' + version + ' (Max ID Bound: ' + maxIdBound.toString() + ')';
+    displayDiv.appendChild(infoDiv);
+
     // Basic iterator mechanism, needs to reset each pass
     var instructionCount = 0;
 
