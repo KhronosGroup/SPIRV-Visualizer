@@ -171,8 +171,16 @@ a.id:hover, a.operation:hover {
     color : darkmagenta;
 }
 
+.tooltipIndex {
+    color : #1b5510;
+}
+
 .tooltipKey {
     color : blue;
+}
+
+.tooltipResultKey {
+    color : #6521b3;
 }
 
 .tooltipValue {

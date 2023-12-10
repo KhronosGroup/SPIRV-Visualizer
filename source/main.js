@@ -119,6 +119,8 @@ function parseBinaryStream(binary) {
         var instructionInfo = spirv.Instructions.get(opcode);
         // Holds operands that are an id (non-literals)
         var operandIdList = [];
+        // gets which word index each item is
+        var operandWordIndexList = [];
 
         // Find other preFunction opcodes to create more labels
         if (insertedDebug == false && instructionInfo.class == 'Debug') {
@@ -247,6 +249,7 @@ function parseBinaryStream(binary) {
                 instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');
                 idConsumers[opcodeResultType].push(instructionCount);
                 operandIdList.push(opcodeResultType);
+                operandWordIndexList.push(1);
             }
 
             // index of array of operands from grammar file array
@@ -353,6 +356,7 @@ function parseBinaryStream(binary) {
                             instructionString += ' ' + createIdHtmlString(nextOperand, 'operand');
                             idConsumers[nextOperand].push(instructionCount);
                             operandIdList.push(nextOperand);
+                            operandWordIndexList.push(operandOffset);
                             operandOffset++;
 
                             operandNameList.push(operandName + ' ' + quantifierIndex);
@@ -363,6 +367,7 @@ function parseBinaryStream(binary) {
                         instructionString += ' ' + createIdHtmlString(operand, 'operand');
                         idConsumers[operand].push(instructionCount);
                         operandIdList.push(operand);
+                        operandWordIndexList.push(operandOffset);
                         operandNameList.push(operandName);
                         operandOffset++;
                     }
@@ -382,6 +387,7 @@ function parseBinaryStream(binary) {
                         instructionString += '"</span>'
                     }
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     // Add 1 for the null terminator
                     operandOffset += Math.ceil((literalString.length + 1) / 4);
 
@@ -389,6 +395,7 @@ function parseBinaryStream(binary) {
                     // single word literal
                     instructionString += ' ' + createLiteralHtmlString(operand);
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     operandOffset++;
 
                 } else if (kind == 'LiteralExtInstInteger') {
@@ -403,12 +410,14 @@ function parseBinaryStream(binary) {
                     const extOpname = (extInstructionSet == undefined) ? operand : extInstructionSet.get(operand).opname;
                     instructionString += ' ' + createLiteralHtmlString(extOpname);
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     operandOffset++;
 
                 } else if (kind == 'LiteralSpecConstantOpInteger') {
                     specConstantOpInfo = spirv.Instructions.get(module[i + operandOffset]);
                     instructionString += ' ' + createLiteralHtmlString(specConstantOpInfo.opname);
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     operandOffset++;
                     specConstantOpIndex = 0;
                     // Start after results as they inherit from parent instruction
@@ -471,6 +480,7 @@ function parseBinaryStream(binary) {
 
                     instructionString += ' ' + createLiteralHtmlString(operandValue);
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     operandOffset += width;
 
                 } else if ((kind == 'IdMemorySemantics') || (kind == 'IdScope')) {
@@ -478,6 +488,7 @@ function parseBinaryStream(binary) {
                     idConsumers[operand].push(instructionCount);
                     operandIdList.push(operand);
                     operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
                     operandOffset++;
 
                 } else if (
@@ -528,6 +539,8 @@ function parseBinaryStream(binary) {
                             operandNameList.push('Variable ' + quantifierIndex);
                             operandNameList.push('Parent ' + quantifierIndex);
                         }
+                        operandWordIndexList.push(operandOffset);
+                        operandWordIndexList.push(operandOffset + 1);
                         operandOffset += 2;
                         quantifierIndex++;
                     }
@@ -578,6 +591,7 @@ function parseBinaryStream(binary) {
                         }
 
                         if (foundValue == true) {
+                            operandWordIndexList.push(operandOffset);
                             operandOffset++;
                             operandNameList.push(operandName);
 
@@ -655,6 +669,7 @@ function parseBinaryStream(binary) {
             'resultType': opcodeResultType,
             'operandNameList': operandNameList,
             'operandIdList': operandIdList,
+            'operandWordIndexList': operandWordIndexList,
             'parentInstructions': []
         });
 
@@ -1068,21 +1083,38 @@ function instructionHover(event) {
     }
 }
 
+function makeTooltip(key, value, index, resultType) {
+    var keyClass = resultType ? 'tooltipResultKey' : 'tooltipKey';
+    return '<span class="tooltipIndex">[' + index + ']</span> ' +
+        '<span class="' + keyClass + '">' + key + '</span>: <span class="tooltipValue">' + value + '</span><br>';
+}
+
 // Used to "highlight" node when hovering dag nodes
 function dagNodeOnHover(node) {
     var nodeDiv = d3.select(this);
     dagNodeHighlight(nodeDiv, true, null);
 
     // Need to ignore the first index of the text since its not an operand
-    var operandNames = instructionMap.get(node.data.id).operandNameList;
+    var instruction = instructionMap.get(node.data.id);
+    var operandNames = instruction.operandNameList;
+    var operandWordIndex = instruction.operandWordIndexList;
     assert(operandNames.length >= (node.data.text.length - 1), 'operandNames length is somehow larger than text length');
 
     var tooltipHtml = '';
-    // skip result/opcode in text
-    for (let i = 1; i < node.data.text.length; i++) {
-        tooltipHtml += '<span class="tooltipKey">' + operandNames[i - 1] + '</span>';
-        tooltipHtml += ': ';
-        tooltipHtml += '<span class="tooltipValue">' + node.data.text[i] + '</span><br>';
+    if (instruction.resultType) {
+        tooltipHtml += makeTooltip('Result Type', '%' + instruction.resultType.toString(), 1, true);
+    }
+
+    if (instruction.result) {
+        let index = instruction.resultType ? 2 : 1;
+        tooltipHtml += makeTooltip('Result', '%' + instruction.result.toString(), index, true);
+    }
+
+    // node.data.text[0] is the '%result = OpInstruction' string
+    var startTextIndex = instruction.resultType ? 2 : 1;
+    for (let i = startTextIndex; i < node.data.text.length; i++) {
+        // because |operandNameList| contains the Result Type, we need to do this minus 1 offset
+        tooltipHtml += makeTooltip(operandNames[i - 1], node.data.text[i], operandWordIndex[i - 1], false);
     }
 
     tooltipDiv.style('opacity', 1).html(tooltipHtml);

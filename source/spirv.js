@@ -76,7 +76,7 @@ function spirvJsonLoaded() {
             xhr.responseType = 'arraybuffer';
             xhr.onload = function(e) {
                 // simulate HTML dom change
-                filename = this.responseURL.replace(/^.*[\\\/]/, '');
+                var filename = this.responseURL.replace(/^.*[\\\/]/, '');
                 fileSelected(this.response, filename);
             };
             xhr.send();
