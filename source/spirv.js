@@ -57,7 +57,7 @@ const SPV_ENV_VULKAN_1_3 = 0x00_01_05_00;
 
 // number of json files needed to be loaded
 var jsonRefCount = 0;
-const jsonRefTotal = 8;
+const jsonRefTotal = 9;
 
 function spirvJsonLoaded() {
     jsonRefCount++;
@@ -94,8 +94,9 @@ const ExtInstTypeGlslStd450 = 0;
 const ExtInstTypeOpenCLStd = 1;
 const ExtInstTypeNonSemanitcDebugPrintf = 2;
 const ExtInstTypeNonSemanitcClspvReflection = 3;
-const ExtInstTypeDebugInfo = 4;
-const ExtInstTypeOpenCLDebug100 = 5;
+const ExtInstTypeNonSemanitcDebugInfo = 4;
+const ExtInstTypeDebugInfo = 5;
+const ExtInstTypeOpenCLDebug100 = 6;
 
 // Call at OpExtInstImport to save mapping, retrieve with getExtInstructions/getExtOperands
 spirv.setResultToExtImportMap = function(extendedName, resultId) {
@@ -107,6 +108,8 @@ spirv.setResultToExtImportMap = function(extendedName, resultId) {
         spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcDebugPrintf);
     } else if (extendedName.includes("NonSemantic.ClspvReflection")) {
         spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcClspvReflection);
+    } else if (extendedName.includes("NonSemantic.Shader.DebugInfo")) {
+        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcDebugInfo);
     } else if (extendedName.includes("DebugInfo")) {
         spirv.ResultToExtImport.set(resultId, ExtInstTypeDebugInfo);
     } else if (extendedName.includes("OpenCL.DebugInfo.100")) {
@@ -198,6 +201,14 @@ function loadExtInstImport() {
         spirv.ExtInstructions.set(ExtInstTypeNonSemanitcClspvReflection, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+        spirvJsonLoaded();
+    });
+
+    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.shader.debuginfo.100.grammar.json', function(json) {
+        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugInfo, new Map());
+        for (let i = 0; i < json.instructions.length; i++) {
+            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
         }
         spirvJsonLoaded();
     });
