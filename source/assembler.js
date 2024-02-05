@@ -215,8 +215,24 @@ function assemble(spirvText, version) {
                 words.push(idMap.get(line[lineIndex++]));
                 words.push(parseInt(line[lineIndex++]));
             } else if (kind == 'PairIdRefIdRef') {
-                words.push(idMap.get(line[lineIndex++]));
-                words.push(idMap.get(line[lineIndex++]));
+                // OpPhi is a control flow instruction and can forward reference a OpLabel
+                let variable_id = idMap.get(line[lineIndex]);
+                if (variable_id == undefined) {
+                    words.push(idsBound);
+                    idMap.set(line[lineIndex], idsBound++);
+                } else {
+                    words.push(variable_id);
+                }
+                lineIndex++;
+
+                let parent_id = idMap.get(line[lineIndex]);
+                if (parent_id == undefined) {
+                    words.push(idsBound);
+                    idMap.set(line[lineIndex], idsBound++);
+                } else {
+                    words.push(parent_id);
+                }
+                lineIndex++;
             } else if (kind == 'LiteralString') {
                 let bytes = encoder.encode(literalString);
                 // turn Uint8Array to Uint32Array
