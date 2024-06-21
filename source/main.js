@@ -375,8 +375,14 @@ function parseBinaryStream(binary) {
                 } else if (kind == 'LiteralString') {
                     var literalString = spirv.getLiteralString(module.slice(i + operandOffset, i + instructionLength));
                     // Source strings can be unhelpfully long, so hide by default
-                    if (opcode == spirv.Enums.Op.OpSource || opcode == spirv.Enums.Op.OpSourceContinued ||
-                        opcode == spirv.Enums.Op.OpModuleProcessed) {
+                    // If the OpString is too long it can also be unhelpfully long
+                    const string_len_threshhold = 300; // about 3 full lines
+                    var hide_string = opcode == spirv.Enums.Op.OpSource ||
+                                      opcode == spirv.Enums.Op.OpSourceContinued ||
+                                      opcode == spirv.Enums.Op.OpModuleProcessed ||
+                                      literalString.length > string_len_threshhold;
+
+                    if (hide_string) {
                         debugStringMap.set(instructionCount, literalString);
                         instructionString += ' <span class="operand literal debugString">'
                         instructionString += 'click to view'
