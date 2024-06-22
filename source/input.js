@@ -137,6 +137,7 @@ function toggleDisassemblyInput(turnOn) {
     if (turnOn) {
         displayDiv.style.display = 'none';
         inputDiv.style.display = 'inline-block';
+        displayDiv.innerHTML = '';
     } else {
         displayDiv.style.display = 'inline-block';
         inputDiv.style.display = 'none';
@@ -181,4 +182,10 @@ $('#collapseAll').on('click', function() {
             toggle_elements[i].click();
         }
     }
+});
+
+$('#clearAll').on('click', function() {
+    toggleDisassemblyInput(true);
+    clearDagData();
+    d3.select('#dagSvg').selectAll('*').remove();
 });
