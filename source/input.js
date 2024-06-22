@@ -184,8 +184,18 @@ $('#collapseAll').on('click', function() {
     }
 });
 
+$('#expandAll').on('click', function() {
+    let toggle_elements = document.getElementsByClassName('toggle');
+    for (let i = 0; i < toggle_elements.length; i++) {
+        if (!toggle_elements[i].checked) {
+            toggle_elements[i].click();
+        }
+    }
+});
+
 $('#clearAll').on('click', function() {
     toggleDisassemblyInput(true);
     clearDagData();
+    d3.select('#dagSvg').selectAll('*').remove();
     d3.select('#dagSvg').selectAll('*').remove();
 });
