@@ -51,7 +51,7 @@ function invertedTextColor(rgaText) {
 function parseFloatString(value) {
     // edge case not handled below
     if (parseInt(value, 2) == 0) {
-        return '0.0f';
+        return '0.0';
     }
 
     // index where exp and mantissa split for
@@ -80,8 +80,8 @@ function parseFloatString(value) {
 
     let result = float * sign;
     if (parseInt(result) == result) {
-        return '' + result + '.0f';
+        return '' + result + '.0';
     } else {
-        return '' + result + 'f';
+        return '' + result;
     }
 }

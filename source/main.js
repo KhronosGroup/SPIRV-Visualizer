@@ -49,7 +49,7 @@ function parseBinaryStream(binary) {
     // Clear div from any previous run
     displayDiv.innerHTML = '';
     // clear previous SVG
-    d3.select('#dagSvg').selectAll('*').remove();
+    clearDagDiv();
     resetTracking();
 
     // translate to Uint32 array to match each SPIR-V dword
@@ -869,6 +869,11 @@ function clearDagData() {
     liveDagData = [];
 }
 
+function clearDagDiv() {
+    clearDagData();
+    d3.select('#dagSvg').selectAll('*').remove();
+}
+
 // @param instruction Which instruction in the module
 // @param parents The parent nodes of the current instruction
 function fillDagData(instruction, parents) {
@@ -987,8 +992,7 @@ function displayDagResult(result, instruction) {
 
 // @param instruction Assumes is already parsed to int
 function displayDebugString(instruction) {
-    clearDagData();
-    d3.select('#dagSvg').selectAll('*').remove();
+    clearDagDiv();
 
     let debugStringDiv = document.getElementById('debugStringDiv');
     debugStringDiv.innerText = debugStringMap.get(instruction);
@@ -996,8 +1000,14 @@ function displayDebugString(instruction) {
 
 // @param toggle True to use, False to not
 function useOpNames(toggle) {
+    let insertConstantsChecked = document.getElementById('insertConstants').checked;
     // Map contains (42 -> "string")
     opNameMap.forEach(function(value, key, map) {
+        if (insertConstantsChecked && constantValues.has(key)) {
+            // if instruction is modified by both, insertConstant gets priority
+            return;
+        }
+
         // Each HTML element is id="id42"
         var className = 'id' + key;
         var newValue = toggle ? ('%' + value) : ('%' + key);

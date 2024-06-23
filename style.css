@@ -246,3 +246,15 @@ a.id:hover, a.operation:hover {
 #fileSelectName {
     line-height: 100%;
 }
+
+#alertBox {
+    /* start hidden */
+    display: none;
+    position: absolute;
+    top: 5%;
+    text-align: center;
+    background: #ffea78;
+    left: 45%;
+    padding: 15px;
+    border-radius: 10px;
+}

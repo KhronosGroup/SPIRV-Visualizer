@@ -195,7 +195,45 @@ $('#expandAll').on('click', function() {
 
 $('#clearAll').on('click', function() {
     toggleDisassemblyInput(true);
-    clearDagData();
-    d3.select('#dagSvg').selectAll('*').remove();
-    d3.select('#dagSvg').selectAll('*').remove();
+    clearDagDiv();
+});
+
+$('#copyToClipboard').on('click', function() {
+    // These modifications make it hard to grab spirv that other assemblers will understand
+    let opNamesChecked = document.getElementById('opNames').checked;
+    if (opNamesChecked) {
+        useOpNames(false);
+    }
+    let insertConstantsChecked = document.getElementById('insertConstants').checked;
+    if (insertConstantsChecked) {
+        insertConstants(false);
+    }
+
+    var clipboard = '';
+    let instruction_divs = document.getElementsByClassName("instruction");
+    for (let i = 0; i < instruction_divs.length; i++) {
+        let instruction_div = instruction_divs[i];
+        // strip the [123] number from the front
+        let offset =  instruction_div.innerText.indexOf(']') + 3;
+        if (debugStringMap.has(i)) {
+            let instruction_text = instruction_div.innerText.substr(offset);
+            clipboard += instruction_text.replace("click to view", "\"" + debugStringMap.get(i) + "\"\n");
+        } else {
+            // normal case
+            clipboard += instruction_div.innerText.substr(offset) + '\n';
+        }
+    }
+
+    // reset any settings
+    if (opNamesChecked) {
+        useOpNames(true);
+    }
+    if (insertConstantsChecked) {
+        insertConstants(true);
+    }
+
+    navigator.clipboard.writeText(clipboard);
+    document.getElementById('alertBox').innerHTML = "copied to clipborad!";
+    document.getElementById('alertBox').style.display = "block";
+    setTimeout(function(){ document.getElementById('alertBox').style.display = "none"; }, 1000);
 });

@@ -47,6 +47,7 @@
                     </div>
                 </div>
                 <div id="settingsRight" class="col">
+                    <button id="copyToClipboard" class="customButton">Copy To Clipboard</button>
                     <button id="clearAll" class="customButton">Clear All</button>
                     <input type="file" name="fileSelectorTop" id="fileSelectorTop" class="hide"/>
                     <label for="fileSelectorTop" class="customButton">Load new SPIR-V file</label>
@@ -84,7 +85,7 @@
             </div>
         </div>
     </div>
-
+    <div id="alertBox"></div>
   <script src="lib/jquery-3.5.1.min.js"></script>
   <script src="lib/d3.v5.min.js"></script>
   <script src="lib/d3-dag.min.js"></script>
