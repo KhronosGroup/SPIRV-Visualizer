@@ -15,32 +15,36 @@
 
 var spirv = {
     // When all the needed JSON grammar files load, let the UI know
-    JsonIsReady : false,
+    JsonIsReady: false,
 
     // Common Helper Functions/Utils
-    validateHeader : undefined,
-    getLiteralString : undefined,
+    validateHeader: undefined,
+    getLiteralString: undefined,
 
-    GrammarPath : "",
-    Version : "0.0.0",
-    Meta : {},
+    GrammarPath: '',
+    Version: '0.0.0',
+    Meta: {},
 
-    Enums : {}, // enum values for opcodes and operands
-    Instructions : new Map(),  // details information about opcodes
-    Operands : new Map(), // details information about operands in 'operand_kinds' section
+    Enums: {},                // enum values for opcodes and operands
+    Instructions: new Map(),  // details information about opcodes
+    Operands: new Map(),      // details information about operands in 'operand_kinds' section
 
-    NameToOpcode : new Map(),  // [ 'OpCode' string : opcode number id ]
+    NameToOpcode: new Map(),  // [ 'OpCode' string : opcode number id ]
 
-    ExtInstructions : new Map(), // Same mapping as Instructions, but for each grammar file
-    ExtOperands : new Map(),   // Same mapping as Operands, but for each grammar file
+    ExtInstructions: new Map(),  // Same mapping as Instructions, but for each grammar file
+    ExtOperands: new Map(),      // Same mapping as Operands, but for each grammar file
     // To save everyone having to build this map themselve, provide helpers
-    ResultToExtImport : new Map(), // Map result ID of OpExtInstImport to actual
-    setResultToExtImportMap : undefined,
-    getExtInstructions : undefined,
-    getExtOperands : undefined,
+    ResultToExtImport: new Map(),  // Map result ID of OpExtInstImport to actual
+    setResultToExtImportMap: undefined,
+    getExtInstructions: undefined,
+    getExtOperands: undefined,
 
-    OpcodesWithResultType : [],
-    OpcodesWithResult : [],
+    // Non-Semantic instructions don't have literals, so we need to manually map ValueEnum/BitEnum
+    // DebugBreak and DebugPrintf don't have any operands that need checking
+    getNonSemanticType: undefined,
+
+    OpcodesWithResultType: [],
+    OpcodesWithResult: [],
 };
 
 const SPV_ENV_UNIVERSAL_1_0 = 0x00_01_00_00;

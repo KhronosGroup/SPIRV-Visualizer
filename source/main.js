@@ -234,7 +234,7 @@ function parseBinaryStream(binary) {
         {
             // HTML string to display
             // ex. "[19]  %13 = OpTypeFunction %12"
-            var instructionString = '<span class="count">[' + instructionCount + ']</span>&emsp;';
+            var instructionString = `<span class="count">[${instructionCount}]</span>&emsp;`;
 
             // Handle the result and type as always will be in front
             if (hasResult == true) {
@@ -243,7 +243,7 @@ function parseBinaryStream(binary) {
                 resultToInstructionMap.set(opcodeResult, instructionCount);
             }
 
-            instructionString += ' <a class="operation">' + mapValueToEnumKey(spirv.Enums.Op, opcode) + '</a>'
+            instructionString += ` <a class="operation">${mapValueToEnumKey(spirv.Enums.Op, opcode)}</a>`
 
             if (hasResultType == true) {
                 instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');
@@ -480,7 +480,7 @@ function parseBinaryStream(binary) {
 
                     var insertValue = operandValue;
                     if (opcode == spirv.Enums.Op.OpSpecConstant) {
-                        insertValue = 'spec(' + insertValue + ')';
+                        insertValue = `spec(${insertValue})`;
                     }
                     constantValues.set(module[i + 2], insertValue);
 
@@ -586,7 +586,7 @@ function parseBinaryStream(binary) {
                             } else if (value == operand) {
                                 // Expect a single value, not flags if not BitEnum
                                 instructionString +=
-                                    ' <span class="operand enumerant">' + operandInfo.enumerants[i].enumerant + '</span>';
+                                    ` <span class="operand enumerant">${operandInfo.enumerants[i].enumerant}</span>`;
 
                                 if (operandInfo.enumerants[i].parameters) {
                                     parameterOperandQueue.push(operandInfo.enumerants[i].parameters);
@@ -608,7 +608,7 @@ function parseBinaryStream(binary) {
 
                             // Need to formulate string after finding all enums as well as counter operand
                             if (operandInfo.category == 'BitEnum') {
-                                instructionString += ' <span class="operand enumerant">' + bitEnumString + '</span>';
+                                instructionString += ` <span class="operand enumerant">${bitEnumString}</span>`;
                             }
                         }
                     }
@@ -757,19 +757,19 @@ function parseBinaryStream(binary) {
                 var instructionId = value.substring(value.indexOf('-') + 1);
                 // String switch case to find all the classes being used
                 if (value.startsWith('loopHeaderBlock')) {
-                    newDiv.innerHTML = ' [Loop Header ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Loop Header ${instructionId}]`;
                 } else if (value.startsWith('loopMergeBlock')) {
-                    newDiv.innerHTML = ' [Loop Merge ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Loop Merge ${instructionId}]`;
                 } else if (value.startsWith('loopContinueBlock')) {
-                    newDiv.innerHTML = ' [Loop Continue ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Loop Continue ${instructionId}]`;
                 } else if (value.startsWith('loopBreakBlock')) {
-                    newDiv.innerHTML = ' [Loop Break ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Loop Break ${instructionId}]`;
                 } else if (value.startsWith('selectionHeaderBlock')) {
-                    newDiv.innerHTML = ' [Selection Header ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Selection Header ${instructionId}]`;
                 } else if (value.startsWith('selectionMergeBlock')) {
-                    newDiv.innerHTML = ' [Selection Merge ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Selection Merge ${instructionId}]`;
                 } else if (value.startsWith('returnBlock')) {
-                    newDiv.innerHTML = ' [Return ' + instructionId + ']';
+                    newDiv.innerHTML = ` [Return ${instructionId}]`;
                 } else {
                     assert(false, 'Unknown label class: ' + value);
                 }
@@ -800,7 +800,7 @@ function createIdHtmlString(id, extraClass) {
 }
 
 function createLiteralHtmlString(literal) {
-    return '<span class="operand literal">' + literal + '</span>';
+    return `<span class="operand literal">${literal}</span>`;
 }
 
 // Wraps the div with the proper HTML elements
@@ -1101,8 +1101,8 @@ function instructionHover(event) {
 
 function makeTooltip(key, value, index, resultType) {
     var keyClass = resultType ? 'tooltipResultKey' : 'tooltipKey';
-    return '<span class="tooltipIndex">[' + index + ']</span> ' +
-        '<span class="' + keyClass + '">' + key + '</span>: <span class="tooltipValue">' + value + '</span><br>';
+    return `<span class="tooltipIndex">[${index}]</span> <span class="${keyClass}">${key}</span>: <span class="tooltipValue">${
+        value}</span><br>`;
 }
 
 // Used to "highlight" node when hovering dag nodes
