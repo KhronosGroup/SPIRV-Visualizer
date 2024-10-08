@@ -31,6 +31,8 @@ var opNameMap = new Map();
 var debugStringMap = new Map();
 // Mapping of what to display if inserting constant values
 var constantValues = new Map();
+// Mapping of what OpExtInst are non-semantic
+var nonSemanticInstructions = new Map();
 
 // Ensures consecutive loads are cleared
 function resetTracking() {
@@ -40,6 +42,7 @@ function resetTracking() {
     opNameMap = new Map();
     debugStringMap = new Map();
     constantValues = new Map();
+    nonSemanticInstructions = new Map();
 }
 
 // @param binary ArrayBuffer of spirv module binary file
@@ -376,11 +379,9 @@ function parseBinaryStream(binary) {
                     var literalString = spirv.getLiteralString(module.slice(i + operandOffset, i + instructionLength));
                     // Source strings can be unhelpfully long, so hide by default
                     // If the OpString is too long it can also be unhelpfully long
-                    const string_len_threshhold = 300; // about 3 full lines
-                    var hide_string = opcode == spirv.Enums.Op.OpSource ||
-                                      opcode == spirv.Enums.Op.OpSourceContinued ||
-                                      opcode == spirv.Enums.Op.OpModuleProcessed ||
-                                      literalString.length > string_len_threshhold;
+                    const string_len_threshhold = 300;  // about 3 full lines
+                    var hide_string = opcode == spirv.Enums.Op.OpSource || opcode == spirv.Enums.Op.OpSourceContinued ||
+                        opcode == spirv.Enums.Op.OpModuleProcessed || literalString.length > string_len_threshhold;
 
                     if (hide_string) {
                         debugStringMap.set(instructionCount, literalString);
@@ -409,6 +410,11 @@ function parseBinaryStream(binary) {
                         opcode == spirv.Enums.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
                     // single word literal but from extended instruction set
                     const setId = module[i + 3];
+
+                    const nonSemanitcType = spirv.getNonSemanticType(setId);
+                    if (nonSemanitcType) {
+                        nonSemanticInstructions.set(instructionCount, nonSemanitcType);
+                    }
 
                     // This will have the while loop use the extended grammar
                     const extInstructionSet = spirv.getExtInstructions(setId);
@@ -1017,6 +1023,20 @@ function useOpNames(toggle) {
     });
 }
 
+function updateNonSemantic(setId, operandDiv, enumerantName) {
+    let operandInfo = spirv.ExtOperands.get(setId).get(enumerantName);
+    let currentValue = operandDiv.innerText;
+    if (operandInfo.category == 'ValueEnum') {
+        let enumerantsLength = operandInfo.enumerants.length;
+        for (let i = 0; i < enumerantsLength; i++) {
+            if (currentValue == operandInfo.enumerants[i].value) {
+                operandDiv.innerText = operandInfo.enumerants[i].enumerant;
+                return;
+            }
+        }
+    }
+}
+
 // @param toggle True to use, False to not
 function insertConstants(toggle) {
     // Map contains (42 -> "string")
@@ -1039,6 +1059,32 @@ function insertConstants(toggle) {
             }
         }
     });
+
+    // After updating constants, look up NonSemantic instructions so we can apply the ValueEnum/BitEnum from the constant value
+    if (toggle) {
+        nonSemanticInstructions.forEach(function(setId, instructionId, map) {
+            let instructionDiv = document.getElementById('instruction_' + instructionId);
+            let operands = instructionDiv.getElementsByClassName('operand');
+            let extOpname = operands[1].innerText.trim();
+
+            if (setId == ExtInstTypeNonSemanitcDebugInfo) {
+                if (extOpname == 'DebugTypeBasic') {
+                    updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding')
+                } else if (extOpname == 'DebugTypeComposite') {
+                    updateNonSemantic(setId, operands[3], 'DebugCompositeType')
+                } else if (extOpname == 'DebugTypeQualifier') {
+                    updateNonSemantic(setId, operands[3], 'DebugTypeQualifier')
+                } else if (extOpname == 'DebugImportedEntity') {
+                    updateNonSemantic(setId, operands[3], 'DebugImportedEntity')
+                } else {
+                    return;
+                }
+            } else if (setId == ExtInstTypeNonSemanitcClspvReflection) {
+                // TODO - add ExtInstTypeNonSemanitcClspvReflection support
+                return;
+            }
+        });
+    }
 }
 
 // Used to hold a different color for each node

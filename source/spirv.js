@@ -132,6 +132,17 @@ spirv.getExtOperands = function(setId) {
     return spirv.ExtOperands.get(id);
 }
 
+spirv.getNonSemanticType = function(setId) {
+    const id = spirv.ResultToExtImport.get(setId);
+    if (id == ExtInstTypeNonSemanitcDebugInfo) {
+        return ExtInstTypeNonSemanitcDebugInfo;
+    } else if (id == ExtInstTypeNonSemanitcClspvReflection) {
+        return ExtInstTypeNonSemanitcClspvReflection;
+    } else {
+        return undefined;
+    }
+}
+
 function loadSpirvJson() {
     // C Header equivalent
     $.getJSON(spirv.GrammarPath + 'spirv.json', function(json) {
@@ -213,6 +224,11 @@ function loadExtInstImport() {
         spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugInfo, new Map());
         for (let i = 0; i < json.instructions.length; i++) {
             spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
+        }
+
+        spirv.ExtOperands.set(ExtInstTypeNonSemanitcDebugInfo, new Map());
+        for (let i = 0; i < json.operand_kinds.length; i++) {
+            spirv.ExtOperands.get(ExtInstTypeNonSemanitcDebugInfo).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
         }
         spirvJsonLoaded();
     });
