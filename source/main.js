@@ -416,10 +416,13 @@ function parseBinaryStream(binary) {
                         nonSemanticInstructions.set(instructionCount, nonSemanitcType);
                     }
 
-                    // This will have the while loop use the extended grammar
                     const extInstructionSet = spirv.getExtInstructions(setId);
                     // There can be custom extended instructions starting with SPIR-V 1.6
                     const extOpname = (extInstructionSet == undefined) ? operand : extInstructionSet.get(operand).opname;
+                    // This will have the while loop use the extended grammar
+                    if (extInstructionSet) {
+                        extendedOperandInfo = extInstructionSet.get(operand);
+                    }
                     instructionString += ' ' + createLiteralHtmlString(extOpname);
                     operandNameList.push(operandName);
                     operandWordIndexList.push(operandOffset);
