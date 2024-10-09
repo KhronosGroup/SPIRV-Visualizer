@@ -1029,14 +1029,31 @@ function useOpNames(toggle) {
 function updateNonSemantic(setId, operandDiv, enumerantName) {
     let operandInfo = spirv.ExtOperands.get(setId).get(enumerantName);
     let currentValue = operandDiv.innerText;
+    let enumerantsLength = operandInfo.enumerants.length;
     if (operandInfo.category == 'ValueEnum') {
-        let enumerantsLength = operandInfo.enumerants.length;
         for (let i = 0; i < enumerantsLength; i++) {
             if (currentValue == operandInfo.enumerants[i].value) {
                 operandDiv.innerText = operandInfo.enumerants[i].enumerant;
                 return;
             }
         }
+    } else if (operandInfo.category == 'BitEnum') {
+        var bitEnumString = '';
+        for (let i = 0; i < enumerantsLength; i++) {
+            let value = parseInt(operandInfo.enumerants[i].value, 16);
+            if (((value & currentValue) != 0) || (value == currentValue)) {
+                let enumerantValue = operandInfo.enumerants[i].enumerant;
+                if (operandInfo.kind == 'DebugInfoFlags' && value != 0) {
+                    enumerantValue = enumerantValue.substring(4);  // remove "Flags" prefix
+                }
+                if (bitEnumString.length == 0) {
+                    bitEnumString = enumerantValue;
+                } else {
+                    bitEnumString += ' | ' + enumerantValue;
+                }
+            }
+        }
+        operandDiv.innerText = bitEnumString;
     }
 }
 
@@ -1072,13 +1089,35 @@ function insertConstants(toggle) {
 
             if (setId == ExtInstTypeNonSemanitcDebugInfo) {
                 if (extOpname == 'DebugTypeBasic') {
-                    updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding')
+                    updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding');
+                    updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugTypePointer') {
+                    updateNonSemantic(setId, operands[4], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugTypeFunction') {
+                    updateNonSemantic(setId, operands[2], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugTypeEnum') {
+                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
                 } else if (extOpname == 'DebugTypeComposite') {
-                    updateNonSemantic(setId, operands[3], 'DebugCompositeType')
+                    updateNonSemantic(setId, operands[3], 'DebugCompositeType');
+                    updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugTypeMember') {
+                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugTypeInheritance') {
+                    updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugGlobalVariable') {
+                    updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugFunctionDeclaration') {
+                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugFunction') {
+                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugLocalVariable') {
+                    updateNonSemantic(setId, operands[8], 'DebugInfoFlags');
+                } else if (extOpname == 'DebugBuildIdentifier') {
+                    updateNonSemantic(setId, operands[3], 'DebugInfoFlags');
                 } else if (extOpname == 'DebugTypeQualifier') {
-                    updateNonSemantic(setId, operands[3], 'DebugTypeQualifier')
+                    updateNonSemantic(setId, operands[3], 'DebugTypeQualifier');
                 } else if (extOpname == 'DebugImportedEntity') {
-                    updateNonSemantic(setId, operands[3], 'DebugImportedEntity')
+                    updateNonSemantic(setId, operands[3], 'DebugImportedEntity');
                 } else {
                     return;
                 }
