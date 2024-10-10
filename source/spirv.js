@@ -101,6 +101,7 @@ const ExtInstTypeNonSemanitcClspvReflection = 3;
 const ExtInstTypeNonSemanitcDebugInfo = 4;
 const ExtInstTypeDebugInfo = 5;
 const ExtInstTypeOpenCLDebug100 = 6;
+// TODO - add VkspReflection
 
 // Call at OpExtInstImport to save mapping, retrieve with getExtInstructions/getExtOperands
 spirv.setResultToExtImportMap = function(extendedName, resultId) {

@@ -1121,9 +1121,6 @@ function insertConstants(toggle) {
                 } else {
                     return;
                 }
-            } else if (setId == ExtInstTypeNonSemanitcClspvReflection) {
-                // TODO - add ExtInstTypeNonSemanitcClspvReflection support
-                return;
             }
         });
     }
