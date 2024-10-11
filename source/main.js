@@ -407,7 +407,8 @@ function parseBinaryStream(binary) {
 
                 } else if (kind == 'LiteralExtInstInteger') {
                     assert(
-                        opcode == spirv.Enums.Op.OpExtInst, 'Makes assumption OpExtInst is only opcode with LiteralExtInstInteger');
+                        opcode == spirv.Enums.Op.OpExtInst || opcode == spirv.Enums.Op.OpExtInstWithForwardRefsKHR,
+                        'Makes assumption OpExtInst/OpExtInstWithForwardRefsKHR is only opcode with LiteralExtInstInteger');
                     // single word literal but from extended instruction set
                     const setId = module[i + 3];
 
@@ -1028,6 +1029,10 @@ function useOpNames(toggle) {
 
 function updateNonSemantic(setId, operandDiv, enumerantName) {
     let operandInfo = spirv.ExtOperands.get(setId).get(enumerantName);
+    if (!operandInfo) {
+        operandInfo = spirv.Operands.get(enumerantName)
+    }
+    assert(operandInfo != undefined, 'Can\'t find NonSemantic operand type of ' + enumerantName);
     let currentValue = operandDiv.innerText;
     let enumerantsLength = operandInfo.enumerants.length;
     if (operandInfo.category == 'ValueEnum') {
@@ -1092,6 +1097,7 @@ function insertConstants(toggle) {
                     updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding');
                     updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
                 } else if (extOpname == 'DebugTypePointer') {
+                    updateNonSemantic(setId, operands[3], 'StorageClass');
                     updateNonSemantic(setId, operands[4], 'DebugInfoFlags');
                 } else if (extOpname == 'DebugTypeFunction') {
                     updateNonSemantic(setId, operands[2], 'DebugInfoFlags');
@@ -1118,6 +1124,8 @@ function insertConstants(toggle) {
                     updateNonSemantic(setId, operands[3], 'DebugTypeQualifier');
                 } else if (extOpname == 'DebugImportedEntity') {
                     updateNonSemantic(setId, operands[3], 'DebugImportedEntity');
+                } else if (extOpname == 'DebugCompilationUnit') {
+                    updateNonSemantic(setId, operands[5], 'SourceLanguage');
                 } else {
                     return;
                 }
