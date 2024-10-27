@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>SPIR-V HexDump</title>
+  </head>
+
+  <body>
+  <strong>Dump SPIR-V Hex and press enter to save to a file with name: </stong>
+  <label for="fileName"></label>
+  <input type="text" id="fileName" name="fileName" value="hex_dump.spv">
+  <textarea id="disassembleInputDiv" style="width: 98vw; height: 93vh;"></textarea>
+  </body>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function(e) {
+        const inputDiv = document.getElementById('disassembleInputDiv');
+        inputDiv.addEventListener("keypress", function(event) {
+            if (event.which === 13 && !event.shiftKey) {
+                event.preventDefault();
+                if (!inputDiv.value.trimStart().startsWith('0x07230203')) {
+                    alert("The first byte is not 0x07230203 so not going to be valid SPIR-V");
+                    return;
+                }
+
+                let words = [];
+                let input = inputDiv.value.split(',');
+                for (const word of input) {
+                    let value = parseInt(word);
+                    if (!isNaN(value)) {
+                        words.push(value);
+                    }
+                }
+                const spirv = new Uint32Array(words);
+
+                const blob = new Blob([spirv], { type: 'application/octet-stream' });
+
+                const link = document.createElement("a");
+                link.href = window.URL.createObjectURL(blob);
+                link.download = document.getElementById("fileName").value;
+                link.click();
+
+                window.URL.revokeObjectURL(link.href);
+            }
+        });
+    });
+  </script>
+</html>
