@@ -215,9 +215,20 @@ $('#copyToClipboard').on('click', function() {
         let instruction_div = instruction_divs[i];
         // strip the [123] number from the front
         let offset =  instruction_div.innerText.indexOf(']') + 3;
+        let opcode = (instruction_div.childElementCount > 2) ? instruction_div.children[1].innerText : '';
+
         if (debugStringMap.has(i)) {
             let instruction_text = instruction_div.innerText.substr(offset);
             clipboard += instruction_text.replace("click to view", "\"" + debugStringMap.get(i) + "\"\n");
+        } else if (opcode == 'OpSwitch' || opcode == 'OpPhi' || opcode == 'OpGroupMemberDecorate') {
+            // The HTML will look like
+            //      <a/> " (Case " <a/> " : " <a/> ")"
+            // So can rejoin by collecting all the children
+            for (let i = 1; i < instruction_div.childElementCount; i++) {
+                if (i != 1) clipboard += ' ';
+                clipboard += instruction_div.children[i].innerText;
+            }
+            clipboard += '\n';
         } else {
             // normal case
             clipboard += instruction_div.innerText.substr(offset) + '\n';
