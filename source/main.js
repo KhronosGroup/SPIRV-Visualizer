@@ -853,6 +853,17 @@ function uncollapseInstruction(instructionDiv) {
 
 // Holds the current dag data used by d3
 var liveDagData = [];
+// Depth of 1 is the base node
+var dagDepth = 0;
+var maxDagDepth = 4;
+// Needed because only want to leave max node if needed else solver will fail
+var maxDepthHit = false;
+const dagMaxHitNodeId = -1;
+const dagMaxHitNode = {
+    'id': dagMaxHitNodeId,
+    'text': ['...'],
+    'parentIds': []
+};
 
 const instructionHighlightOff = '#ffffff';    // default state
 const instructionHighlightOn = '#c9cdff';     // when in use in dag
@@ -877,6 +888,8 @@ function clearDagData() {
         }
     }
     liveDagData = [];
+    dagDepth = 0;
+    maxDepthHit = false;
 }
 
 function clearDagDiv() {
@@ -924,7 +937,7 @@ function fillDagData(instruction, parents) {
         text.push(operandDivs[i].innerText);
     }
 
-    liveDagData.push({'id': instruction, 'text': text, 'parentIds': parents});
+    liveDagData.push({'id': instruction, 'text': text, 'parentIds': parents, 'depth': dagDepth});
 }
 
 // There can be cases where a phi loops back to itself such as:
@@ -938,13 +951,21 @@ var seenDagNodesSet;
 // @param operand If set, will only branch into that operand and not all parentIds
 // @param entryCall only true when the first call to the function is made
 function fillDagBackward(instruction, operand, entryCall) {
+    dagDepth++;
+
     if (entryCall) {
         seenDagNodesSet = new Set();
     }
     if (seenDagNodesSet.has(instruction)) {
+        dagDepth--;
         return;  // prevents infinite looping this function
     }
     seenDagNodesSet.add(instruction);
+
+    if (dagDepth > maxDagDepth) {
+        dagDepth--;
+        return;
+    }
 
     var parents = [];
     if (operand) {
@@ -964,10 +985,30 @@ function fillDagBackward(instruction, operand, entryCall) {
         return (parents.indexOf(element) == index) && (!seenDagNodesSet.has(element));
     })
 
-    fillDagData(instruction, parents);
-    for (let i = 0; i < parents.length; i++) {
-        fillDagBackward(parents[i], undefined, false);
+    // This is the base node, use it to determine max depth
+    // Goal is allow deeper dag if width is shorter
+    if (dagDepth == 1) {
+        if (parents.length <= 1) {
+            maxDagDepth = 9;
+        } else if (parents.length > 4) {
+            maxDagDepth = 3;
+        } else {
+            maxDagDepth = 4;
+        }
     }
+
+    // Check parents length as if it is actually empty, don't want to add a fake node above it
+    if (dagDepth + 1 > maxDagDepth && parents.length > 0) {
+        maxDepthHit = true;
+        fillDagData(instruction, [dagMaxHitNodeId]);
+    } else {
+        // Normal code flow
+        fillDagData(instruction, parents);
+        for (let i = 0; i < parents.length; i++) {
+            fillDagBackward(parents[i], undefined, false);
+        }
+    }
+    dagDepth--;
 }
 
 // @param opcode String of opcode to base dag off of
@@ -1200,6 +1241,11 @@ function makeTooltip(key, value, index, resultType) {
 
 // Used to "highlight" node when hovering dag nodes
 function dagNodeOnHover(node) {
+    if (node.id == dagMaxHitNodeId) {
+        tooltipDiv.style('opacity', 1).html('max DAG depth hit');
+        return;
+    }
+
     var nodeDiv = d3.select(this);
     dagNodeHighlight(nodeDiv, true, null);
 
@@ -1241,6 +1287,11 @@ function dagNodeOnMove(node) {
 
 // Restore node original color
 function dagNodeOffHover(node) {
+    if (node.id == dagMaxHitNodeId) {
+        tooltipHide();
+        return;
+    }
+
     var nodeDiv = d3.select(this);
     dagNodeHighlight(nodeDiv, false, dagColorMap[node.id]);
 
@@ -1253,6 +1304,11 @@ function dagNodeOffHover(node) {
 function drawDag(dagData) {
     // incase tooltip is lingering
     tooltipHide();
+
+    // Add at end right before we need it
+    if (maxDepthHit) {
+        dagData.push(dagMaxHitNode);
+    }
 
     // Grab each time incase window is resized
     const rect = document.getElementById('dagDiv').getBoundingClientRect();
