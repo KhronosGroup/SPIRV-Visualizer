@@ -157,8 +157,15 @@ function assemble(spirvText, version) {
                     if (extInstruction.opname == line[lineIndex]) {
                         lineIndex++
                         words.push(extOpcode);
+
                         if (extInstruction.operands) {
                             for (let i = 0; i < extInstruction.operands.length; i++) {
+                                // Things like DebugExpression can just be empty and there are really no operands left
+                                // Also things like DebugFunction can have optional operands
+                                if (lineIndex >= line.length) {
+                                    break;
+                                }
+
                                 const extKind = extInstruction.operands[i].kind;
                                 GetOperand(extKind);
                             }
