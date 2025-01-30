@@ -1,6 +1,6 @@
 # SPIR-V Visualizer
 
-> Live link: https://www.khronos.org/spir/visualizer/
+> Live link: https://www.khronos.org/spirv/visualizer/
 
 > Tested on Chrome and Firefox
 
