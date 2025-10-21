@@ -12,10 +12,19 @@ Currently assumes a valid SPIR-V Module is used with it.
 
 ## How to run offline
 
-1. `git clone`
-2. `git submodule init`
-3. `git submodule update`
-4. Use favorite method to start server in root directory
+```bash
+git clone https://github.com/KhronosGroup/SPIRV-Visualizer.git
+
+cd SPIRV-Visualizer
+
+git submodule init
+git submodule update
+
+# You can use your other favorite method to start server in root directory too!
+python -m http.server 8000
+```
+
+then open http://localhost:8000/
 
 ## How it works
 
