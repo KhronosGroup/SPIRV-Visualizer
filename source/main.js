@@ -329,7 +329,10 @@ function parseBinaryStream(binary) {
                 // Fall back to the 'kind' string if no name string
                 assert(operandInfo != undefined, 'Unable to find operands from grammar file');
                 var operandName;
-                if (operandInfo.name) {
+                // Some special cases for badly named operands in the grammar (for our purpose)
+                if (opcode == spirv.Enums.Op.OpTypeStruct) {
+                    operandName = 'member'
+                } else if (operandInfo.name) {
                     operandName = (operandInfo.name[0] == '\'') ? operandInfo.name.substring(1, operandInfo.name.length - 1) :
                                                                   operandInfo.name;
                 } else {
