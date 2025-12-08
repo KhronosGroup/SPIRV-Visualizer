@@ -76,15 +76,19 @@ function assemble(spirvText, version) {
             line = line.replace('"' + replaceString + '"', 'REPLACE');
         }
 
+        const commentIndex = line.indexOf(';');
+        if (commentIndex == 0) {
+            return;
+        } else if (commentIndex !== -1) {
+            line = line.substring(0, commentIndex);
+        }
+
         // regex to remove all duplicated white space
         // This makes the 'line' be an array of all words.
         line = line.trim().replace(/\s{2,}/g, ' ').split(' ');
         if (line.length == 1 && line[0] == '') {
             return;
         }  // empty line
-        if (line[0] == ';') {
-            return;
-        }  // SPIR-V comment
 
         const hasResult = line.length >= 3 && line[1] == '=';
         if (hasResult) {
