@@ -54,7 +54,11 @@ function assemble(spirvText, version) {
     let idsBound = 1;
 
     // Make life easy, assume every instruction is a single line
-    spirvText.split('\n').forEach(line => {
+    // (except when there is multi-line debug source)
+    const lines = spirvText.split('\n');
+    for (let line_index = 0; line_index < lines.length; line_index++) {
+        let line = lines[line_index];
+
         // If there is a Literal String, capture it to use later
         let literalString = undefined;
         // CTS dumps it shaders with HTML Entities
@@ -62,10 +66,20 @@ function assemble(spirvText, version) {
         const quoteStart = line.indexOf('"')
         let extraWords = 0;
         if (quoteStart != -1) {
-            const quoteEnd = line.lastIndexOf('"');
-            if (quoteStart == quoteEnd) {
-                // this is a multi-line string
-                assert(false, 'Multi-line string not supported yet for assembler');
+            let quoteEnd = line.lastIndexOf('"');
+
+            // If start and end are the same, OR the end quote is escaped (e.g. ...\")
+            // then we likely have a multi-line string or an escaped quote.
+            if (quoteStart === quoteEnd || line[quoteEnd - 1] === '\\') {
+                while (line_index + 1 < lines.length) {
+                    const realQuotes = line.match(/(^|[^\\])"/g) || [];
+                    if (realQuotes.length % 2 === 0) break;
+
+                    line_index++;
+                    line += '\n' + lines[line_index].replaceAll('&quot;', '"');
+                }
+                // Re-calculate quoteEnd after merging lines
+                quoteEnd = line.lastIndexOf('"');
             }
 
             let replaceString = line.substring(quoteStart + 1, quoteEnd);
@@ -78,7 +92,7 @@ function assemble(spirvText, version) {
 
         const commentIndex = line.indexOf(';');
         if (commentIndex == 0) {
-            return;
+            continue;
         } else if (commentIndex !== -1) {
             line = line.substring(0, commentIndex);
         }
@@ -87,7 +101,7 @@ function assemble(spirvText, version) {
         // This makes the 'line' be an array of all words.
         line = line.trim().replace(/\s{2,}/g, ' ').split(' ');
         if (line.length == 1 && line[0] == '') {
-            return;
+            continue;
         }  // empty line
 
         const hasResult = line.length >= 3 && line[1] == '=';
@@ -290,7 +304,7 @@ function assemble(spirvText, version) {
 
         const instructionInfo = spirv.Instructions.get(opcode);
         if (instructionInfo.operands == undefined) {
-            return;  // things like OpFunctionEnd
+            continue;  // things like OpFunctionEnd
         }
 
         // Need to go through each operand
@@ -309,7 +323,7 @@ function assemble(spirvText, version) {
             GetOperand(kind);
             operandIndex++
         }
-    });
+    };
 
     // update the header
     words[3] = idsBound;
