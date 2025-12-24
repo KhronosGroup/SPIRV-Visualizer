@@ -246,7 +246,8 @@ function parseBinaryStream(binary) {
                 resultToInstructionMap.set(opcodeResult, instructionCount);
             }
 
-            instructionString += ` <a class="operation">${mapValueToEnumKey(spirv.Enums.Op, opcode)}</a>`
+            // From profilng, this was a hotspot on load time, so made a map lookup
+            instructionString += ` <a class="operation">${spirv.OpcodeToName[opcode]}</a>`;
 
             if (hasResultType == true) {
                 instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');

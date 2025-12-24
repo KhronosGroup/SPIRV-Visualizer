@@ -29,6 +29,7 @@ var spirv = {
     Instructions: new Map(),  // details information about opcodes
     Operands: new Map(),      // details information about operands in 'operand_kinds' section
 
+    OpcodeToName: new Map(),  // [ opcode number id : 'OpCode' string ]
     NameToOpcode: new Map(),  // [ 'OpCode' string : opcode number id ]
 
     ExtInstructions: new Map(),  // Same mapping as Instructions, but for each grammar file
@@ -151,6 +152,9 @@ function loadSpirvJson() {
         for (let i = 0; i < json.spv.enum.length; i++) {
             spirv.Enums[json.spv.enum[i].Name] = json.spv.enum[i].Values;
         }
+        spirv.OpcodeToName = Object.fromEntries(
+            Object.entries(spirv.Enums.Op).map(([key, value]) => [value, key])
+        );
         spirvJsonLoaded();
     });
 }
