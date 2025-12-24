@@ -69,7 +69,7 @@ function parseBinaryStream(binary) {
 
     var infoDiv = document.createElement('div');
     const version = ((module[1] >> 16) & 0xff).toString() + '.' + ((module[1] >> 8) & 0xff).toString();
-    infoDiv.setAttribute('id', 'module-info');
+    infoDiv.id = 'module-info';
     infoDiv.innerHTML = 'SPIR-V ' + version + ' (Max ID Bound: ' + maxIdBound.toString() + ')';
     displayDiv.appendChild(infoDiv);
 
@@ -632,8 +632,9 @@ function parseBinaryStream(binary) {
             // Create instruction div
             var newDiv = document.createElement('div');
             newDiv.innerHTML = instructionString
-            newDiv.setAttribute('id', 'instruction_' + instructionCount);
-            newDiv.setAttribute('class', 'instruction');
+            // Setting these directly is faster than setAttribute()
+            newDiv.id = `instruction_${instructionCount}`;
+            newDiv.className = 'instruction';
             currentInstructionDiv.appendChild(newDiv);
         }
 
@@ -766,7 +767,7 @@ function parseBinaryStream(binary) {
 
                 // Create span to add html text
                 var newDiv = document.createElement('span');
-                newDiv.setAttribute('class', 'blockType');
+                newDiv.className = 'blockType';
 
                 var instructionId = value.substring(value.indexOf('-') + 1);
                 // String switch case to find all the classes being used
@@ -821,21 +822,21 @@ function createLiteralHtmlString(literal) {
 // newDiv param must have been created prior to keep scope
 function addCollapsibleWrapper(newDiv, appendDiv, type, attributeName, displayName) {
     var input = document.createElement('input');
-    input.setAttribute('id', 'collapsible_' + attributeName);
-    input.setAttribute('class', 'toggle');
-    input.setAttribute('type', 'checkbox');
-    input.setAttribute('checked', '');
+    input.id  = 'collapsible_' + attributeName;
+    input.className = 'toggle';
+    input.type = 'checkbox';
+    input.checked = true;
     input.style.display = 'none';  // hide checkbox
 
     var label = document.createElement('label');
-    label.setAttribute('for', 'collapsible_' + attributeName);
-    label.setAttribute('class', 'label-toggle label-' + type);
+    label.htmlFor = 'collapsible_' + attributeName;
+    label.className = 'label-toggle label-' + type;
     label.innerHTML = displayName
 
     var wrapDiv = document.createElement('div');
-    wrapDiv.setAttribute('class', 'collapsible-content');
-    newDiv.setAttribute('id', type + '-' + attributeName);
-    newDiv.setAttribute('class', type);
+    wrapDiv.className = 'collapsible-content';
+    newDiv.id = type + '-' + attributeName;
+    newDiv.className = type;
 
     wrapDiv.appendChild(newDiv);
     appendDiv.appendChild(input);
