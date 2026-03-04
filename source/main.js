@@ -111,7 +111,7 @@ function parseBinaryStream(binary) {
     // First pass
     for (let i = 5; i < module.length;) {
         const instruction = module[i];
-        const instructionLength = instruction >> spirv.Meta.WordCountShift;
+        const instructionLength = instruction >>> spirv.Meta.WordCountShift;
         const opcode = instruction & spirv.Meta.OpCodeMask;
 
         // Get type and result according to instruction layout
@@ -703,7 +703,7 @@ function parseBinaryStream(binary) {
     // Second pass
     for (let i = 5; i < module.length;) {
         const instruction = module[i];
-        const length = instruction >> spirv.Meta.WordCountShift;
+        const length = instruction >>> spirv.Meta.WordCountShift;
         const opcode = instruction & spirv.Meta.OpCodeMask;
 
         var currentInstruction = instructionMap.get(instructionCount)
