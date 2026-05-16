@@ -275,7 +275,14 @@ function loadSpirv(spirvHeaderPath) {
 
 // @param header Uint32Array with 5 elements in it
 spirv.validateHeader = function(header) {
-    assert(header[0] == spirv.Meta.MagicNumber, 'Magic Number doesn\'t match, are you sure this is a binary SPIR-V file?');
+    if (header[0] != spirv.Meta.MagicNumber) {
+        // Check for "; SPIR-V" or "OpCapability"
+        if (header[0] === 0x5053203B || header[0] === 0x6143704F) {
+            assert(false, 'Seems you passed in SPIR-V disassembly instead of the binary... you can copy and paste the disassembly on the left side of the screen.');
+        } else {
+            assert(false, 'Magic Number doesn\'t match, are you sure this is a binary SPIR-V file?');
+        }
+    }
     assert(header[1] <= spirv.Meta.Version, 'SPIR-V Headers are older than version of module');
     assert(header[4] == 0, 'Only support schema 0 currently');
 }
