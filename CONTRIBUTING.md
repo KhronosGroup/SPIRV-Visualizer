@@ -5,15 +5,6 @@ SPDX-License-Identifier: Apache-2.0
 
 # Contributing to SPIR-V Visualizer
 
-## Contributing
-
-This project welcomes contributions and suggestions. Contributions require you
-to agree to a Contributor License Agreement (CLA) declaring that you have the
-right to, and actually do, grant the rights to use your contribution.
-
-When you submit a pull request, a CLA bot will determine whether you need to
-sign a CLA. Simply follow the instructions provided.
-
 ## For users: Reporting bugs and requesting features
 
 To report a new bug or request a new feature, please file a GitHub issue. Please
