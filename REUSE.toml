@@ -1,0 +1,31 @@
+version = 1
+SPDX-PackageName = "SPIRV-Visualizer"
+SPDX-PackageDownloadLocation = "https://github.com/KhronosGroup/SPIRV-Visualizer"
+
+[[annotations]]
+precedence = "closest"
+path = [
+    "**",
+]
+SPDX-FileCopyrightText = "The Khronos Group, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+precedence = "closest"
+path = [
+    "lib/d3-dag.min.js",
+    "lib/d3-dag.js",
+    "lib/d3.v5.min.js",
+]
+SPDX-FileCopyrightText = "Erik Brinkman"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+precedence = "closest"
+path = [
+    "lib/qunit/qunit-2.13.0.css",
+    "lib/qunit/qunit-2.13.0.min.js",
+    "lib/jquery-3.5.1.min.js",
+]
+SPDX-FileCopyrightText = "OpenJS Foundation and other contributors"
+SPDX-License-Identifier = "MIT"
