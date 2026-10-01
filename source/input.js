@@ -215,12 +215,9 @@ $('#clearAll').on('click', function() {
 $('#copyToClipboard').on('click', function() {
     // These modifications make it hard to grab spirv that other assemblers will understand
     let opNamesChecked = document.getElementById('opNames').checked;
-    if (opNamesChecked) {
-        useOpNames(false);
-    }
     let insertConstantsChecked = document.getElementById('insertConstants').checked;
-    if (insertConstantsChecked) {
-        insertConstants(false);
+    if (opNamesChecked || insertConstantsChecked) {
+        updateIdText(false, false);
     }
 
     var clipboard = '';
@@ -250,11 +247,8 @@ $('#copyToClipboard').on('click', function() {
     }
 
     // reset any settings
-    if (opNamesChecked) {
-        useOpNames(true);
-    }
-    if (insertConstantsChecked) {
-        insertConstants(true);
+    if (opNamesChecked || insertConstantsChecked) {
+        updateIdText(opNamesChecked, insertConstantsChecked);
     }
 
     navigator.clipboard.writeText(clipboard);

@@ -1044,23 +1044,48 @@ function displayDebugString(instruction) {
     debugStringDiv.innerText = debugStringMap.get(instruction);
 }
 
-// @param toggle True to use, False to not
-function useOpNames(toggle) {
-    let insertConstantsChecked = document.getElementById('insertConstants').checked;
-    // Map contains (42 -> "string")
-    opNameMap.forEach(function(value, key, map) {
-        if (insertConstantsChecked && constantValues.has(key)) {
-            // if instruction is modified by both, insertConstant gets priority
-            return;
+// Sets the text of every id element from the settings, in one pass over the DOM.
+// (Doing it one id at a time with getElementsByClassName was O(ids x DOM size), minutes on a large module)
+// @param useNames Show the OpName of an id instead of %N
+// @param useConstants Show the value of a constant instead of %N, except for the result of the constant itself.
+//        If an id is modified by both, the constant gets priority
+function updateIdText(useNames, useConstants) {
+    const idElements = displayDiv.querySelectorAll('.id');
+    for (let i = 0; i < idElements.length; i++) {
+        const element = idElements[i];
+        // Each element has a class of "id42" with the id value
+        const match = element.className.match(/\bid(\d+)\b/);
+        if (match == null) {
+            continue;
+        }
+        const id = parseInt(match[1]);
+
+        let text;
+        let isConstant = false;
+        if (useConstants && constantValues.has(id) && !element.classList.contains('result')) {
+            text = String(constantValues.get(id));
+            isConstant = true;
+        } else if (useNames && opNameMap.has(id)) {
+            text = '%' + opNameMap.get(id);
+        } else {
+            text = '%' + id;
         }
 
-        // Each HTML element is id="id42"
-        var className = 'id' + key;
-        var newValue = toggle ? ('%' + value) : ('%' + key);
-        for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
-            document.getElementsByClassName(className)[i].innerText = newValue;
+        if (element.textContent != text) {
+            element.textContent = text;
         }
-    });
+        // give constants a unique color from normal ids
+        element.classList.toggle('insertConstant', isConstant);
+    }
+
+    if (useConstants) {
+        updateNonSemanticConstants();
+    }
+}
+
+// @param toggle True to use, False to not
+function useOpNames(toggle) {
+    updateIdText(toggle, document.getElementById('insertConstants').checked);
 }
 
 function updateNonSemantic(setId, operandDiv, enumerantName) {
@@ -1098,76 +1123,57 @@ function updateNonSemantic(setId, operandDiv, enumerantName) {
     }
 }
 
-// @param toggle True to use, False to not
-function insertConstants(toggle) {
-    // Map contains (42 -> "string")
-    constantValues.forEach(function(value, key, map) {
-        // Each HTML element is id="id42"
-        var className = 'id' + key;
-        var newValue = toggle ? value : ('%' + key);
-        for (let i = 0; i < document.getElementsByClassName(className).length; i++) {
-            var element = document.getElementsByClassName(className)[i];
-            // don't replace the result of the constant op itself
-            if (element.classList.contains('result')) {
-                continue;
-            }
-            element.innerText = newValue;
-            // give unique color from normal ids
-            if (toggle) {
-                element.classList.add('insertConstant');
+// After constants are inserted, NonSemantic instructions can show the ValueEnum/BitEnum name for the constant value
+function updateNonSemanticConstants() {
+    nonSemanticInstructions.forEach(function(setId, instructionId, map) {
+        let instructionDiv = document.getElementById('instruction_' + instructionId);
+        let operands = instructionDiv.getElementsByClassName('operand');
+        let extOpname = collapsedText(operands[1]);
+
+        if (setId == ExtInstTypeNonSemanitcDebugInfo) {
+            if (extOpname == 'DebugTypeBasic') {
+                updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding');
+                updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypePointer') {
+                updateNonSemantic(setId, operands[3], 'StorageClass');
+                updateNonSemantic(setId, operands[4], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeFunction') {
+                updateNonSemantic(setId, operands[2], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeEnum') {
+                updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeComposite') {
+                updateNonSemantic(setId, operands[3], 'DebugCompositeType');
+                updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeMember') {
+                updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeInheritance') {
+                updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugGlobalVariable') {
+                updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugFunctionDeclaration') {
+                updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugFunction') {
+                updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugLocalVariable') {
+                updateNonSemantic(setId, operands[8], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugBuildIdentifier') {
+                updateNonSemantic(setId, operands[3], 'DebugInfoFlags');
+            } else if (extOpname == 'DebugTypeQualifier') {
+                updateNonSemantic(setId, operands[3], 'DebugTypeQualifier');
+            } else if (extOpname == 'DebugImportedEntity') {
+                updateNonSemantic(setId, operands[3], 'DebugImportedEntity');
+            } else if (extOpname == 'DebugCompilationUnit') {
+                updateNonSemantic(setId, operands[5], 'SourceLanguage');
             } else {
-                element.classList.remove('insertConstant');
+                return;
             }
         }
     });
+}
 
-    // After updating constants, look up NonSemantic instructions so we can apply the ValueEnum/BitEnum from the constant value
-    if (toggle) {
-        nonSemanticInstructions.forEach(function(setId, instructionId, map) {
-            let instructionDiv = document.getElementById('instruction_' + instructionId);
-            let operands = instructionDiv.getElementsByClassName('operand');
-            let extOpname = collapsedText(operands[1]);
-
-            if (setId == ExtInstTypeNonSemanitcDebugInfo) {
-                if (extOpname == 'DebugTypeBasic') {
-                    updateNonSemantic(setId, operands[4], 'DebugBaseTypeAttributeEncoding');
-                    updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypePointer') {
-                    updateNonSemantic(setId, operands[3], 'StorageClass');
-                    updateNonSemantic(setId, operands[4], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeFunction') {
-                    updateNonSemantic(setId, operands[2], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeEnum') {
-                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeComposite') {
-                    updateNonSemantic(setId, operands[3], 'DebugCompositeType');
-                    updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeMember') {
-                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeInheritance') {
-                    updateNonSemantic(setId, operands[5], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugGlobalVariable') {
-                    updateNonSemantic(setId, operands[10], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugFunctionDeclaration') {
-                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugFunction') {
-                    updateNonSemantic(setId, operands[9], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugLocalVariable') {
-                    updateNonSemantic(setId, operands[8], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugBuildIdentifier') {
-                    updateNonSemantic(setId, operands[3], 'DebugInfoFlags');
-                } else if (extOpname == 'DebugTypeQualifier') {
-                    updateNonSemantic(setId, operands[3], 'DebugTypeQualifier');
-                } else if (extOpname == 'DebugImportedEntity') {
-                    updateNonSemantic(setId, operands[3], 'DebugImportedEntity');
-                } else if (extOpname == 'DebugCompilationUnit') {
-                    updateNonSemantic(setId, operands[5], 'SourceLanguage');
-                } else {
-                    return;
-                }
-            }
-        });
-    }
+// @param toggle True to use, False to not
+function insertConstants(toggle) {
+    updateIdText(document.getElementById('opNames').checked, toggle);
 }
 
 // Used to hold a different color for each node
