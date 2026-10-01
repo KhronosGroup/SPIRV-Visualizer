@@ -51,6 +51,11 @@ function parseBinaryStream(binary) {
     const performanceStart = performance.now();
 
     // Clear div from any previous run
+    if (sectionObserver) {
+        sectionObserver.disconnect();
+        sectionObserver = undefined;
+    }
+    sectionGeneration++;
     displayDiv.innerHTML = '';
     // clear previous SVG
     clearDagDiv();
@@ -806,6 +811,8 @@ function parseBinaryStream(binary) {
             }
         }
 
+        hideOffscreenSections(displayDiv.querySelectorAll('.label, .preFunction'));
+
         // Click events are handled by a single delegated listener on displayDiv (see input.js)
     }
 
@@ -851,6 +858,110 @@ function addCollapsibleWrapper(newDiv, appendDiv, type, attributeName, displayNa
     appendDiv.appendChild(input);
     appendDiv.appendChild(label);
     appendDiv.appendChild(wrapDiv);
+}
+
+// Large modules have hundreds of thousands of DOM nodes, which can take many seconds of style and layout to show.
+// Sections (blocks and the pre-function sections) away from the visible part of displayDiv are hidden so the browser
+// skips their style, layout and paint. They keep taking up space from the height estimate below, so the scroll bar is
+// about right, and an IntersectionObserver shows them again as they get close to being scrolled to.
+//
+// Sections start hidden with content-visibility: hidden, then are switched to hidden="until-found" in the background.
+// until-found lets Ctrl+F find text in a hidden section (the browser removes the attribute itself on a match), but
+// Chrome lays out everything that is until-found on the first frame, which is as slow as not hiding anything.
+// Switching after the first frame is cheap. (content-visibility: auto has the same first frame cost.)
+var sectionObserver = undefined;
+// How far outside the visible part of displayDiv sections are still shown, so normal scrolling doesn't show empty space
+const sectionObserverMargin = '2000px';
+// Sections close to the visible part of displayDiv
+var nearSections = new Set();
+// Sections already switched to hidden="until-found"
+var searchableSections = new Set();
+// Stops the background switch to until-found from a previous module
+var sectionGeneration = 0;
+
+function hideSection(section) {
+    if (searchableSections.has(section)) {
+        section.style.contentVisibility = '';
+        section.setAttribute('hidden', 'until-found');
+    } else {
+        section.style.contentVisibility = 'hidden';
+    }
+}
+
+function showSection(section) {
+    section.style.contentVisibility = '';
+    section.removeAttribute('hidden');
+}
+
+function hideOffscreenSections(sections) {
+    const generation = ++sectionGeneration;
+    // Without hidden="until-found" Ctrl+F wouldn't find text in hidden sections, so keep showing everything there
+    if (!('onbeforematch' in document.body) || !window.IntersectionObserver) {
+        return;
+    }
+    nearSections = new Set();
+    searchableSections = new Set();
+
+    sectionObserver = new IntersectionObserver(function(entries) {
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                nearSections.add(entry.target);
+                showSection(entry.target);
+            } else {
+                nearSections.delete(entry.target);
+                hideSection(entry.target);
+            }
+        }
+    }, {root: displayDiv, rootMargin: sectionObserverMargin + ' 0px'});
+
+    // Show enough of the first sections so the first frame isn't empty, the observer takes over from there
+    const firstShownInstructions = 1000;
+    let shownInstructions = 0;
+    for (let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+        const instructions = section.childElementCount;
+        // Each instruction is about 1.3em tall. "auto" lets the browser use the real height once a section was shown
+        section.style.containIntrinsicHeight = `auto ${(instructions * 1.3 + 1).toFixed(1)}em`;
+        if (shownInstructions < firstShownInstructions) {
+            shownInstructions += instructions;
+            nearSections.add(section);
+        } else {
+            hideSection(section);
+        }
+        sectionObserver.observe(section);
+    }
+
+    // Switch to until-found a batch at a time while the browser is idle (each batch is a few ms)
+    const requestIdle = window.requestIdleCallback || function(callback) {
+        return setTimeout(callback, 1);
+    };
+    const batchSize = 100;
+    let next = 0;
+    function makeSearchable() {
+        if (generation != sectionGeneration) {
+            return;  // a new module was loaded
+        }
+        const end = Math.min(next + batchSize, sections.length);
+        for (; next < end; next++) {
+            const section = sections[next];
+            searchableSections.add(section);
+            if (!nearSections.has(section)) {
+                hideSection(section);
+            }
+        }
+        if (next < sections.length) {
+            requestIdle(makeSearchable);
+        }
+    }
+    requestIdle(makeSearchable);
+}
+
+// Needs to be called before scrolling to an instruction that might be in a hidden section
+function showInstructionSection(instructionDiv) {
+    const section = instructionDiv.closest('.label, .preFunction');
+    if (section) {
+        showSection(section);
+    }
 }
 
 function uncollapseInstruction(instructionDiv) {
@@ -932,8 +1043,8 @@ function fillDagData(instruction, parents) {
     instructionFn.on('mouseover', instructionHover);
     instructionFn.on('mouseout', instructionHover);
 
-    var operation = instructionDiv.innerText;
-    const opcode = instructionDiv.getElementsByClassName('operation')[0].innerText;
+    var operation = collapsedText(instructionDiv);
+    const opcode = collapsedText(instructionDiv.getElementsByClassName('operation')[0]);
     // remove starting instruction prefix and operands suffix
     operation = operation.substring(operation.indexOf(' ') + 1, operation.indexOf(opcode) + opcode.length);
 
@@ -943,12 +1054,12 @@ function fillDagData(instruction, parents) {
     var resultTypeDiv = instructionDiv.getElementsByClassName('resultType');
     if (resultTypeDiv.length != 0) {
         assert(resultTypeDiv.length == 1, 'More then 1 resultType found in ' + instruction);
-        text.push(resultTypeDiv[0].innerText);
+        text.push(collapsedText(resultTypeDiv[0]));
     }
 
     var operandDivs = instructionDiv.getElementsByClassName('operand');
     for (let i = 0; i < operandDivs.length; i++) {
-        text.push(operandDivs[i].innerText);
+        text.push(collapsedText(operandDivs[i]));
     }
 
     liveDagData.push({'id': instruction, 'text': text, 'parentIds': parents, 'depth': dagDepth});
@@ -1088,7 +1199,7 @@ function updateNonSemantic(setId, operandDiv, enumerantName) {
         operandInfo = spirv.Operands.get(enumerantName)
     }
     assert(operandInfo != undefined, 'Can\'t find NonSemantic operand type of ' + enumerantName);
-    let currentValue = operandDiv.innerText;
+    let currentValue = collapsedText(operandDiv);
     let enumerantsLength = operandInfo.enumerants.length;
     if (operandInfo.category == 'ValueEnum') {
         for (let i = 0; i < enumerantsLength; i++) {
@@ -1145,7 +1256,7 @@ function insertConstants(toggle) {
         nonSemanticInstructions.forEach(function(setId, instructionId, map) {
             let instructionDiv = document.getElementById('instruction_' + instructionId);
             let operands = instructionDiv.getElementsByClassName('operand');
-            let extOpname = operands[1].innerText.trim();
+            let extOpname = collapsedText(operands[1]);
 
             if (setId == ExtInstTypeNonSemanitcDebugInfo) {
                 if (extOpname == 'DebugTypeBasic') {
@@ -1212,6 +1323,7 @@ function dagNodeOnClick(node) {
     // Snaps to instruction text on click
     var instructionDiv = document.getElementById('instruction_' + node.id);
     uncollapseInstruction(instructionDiv);
+    showInstructionSection(instructionDiv);
     instructionDiv.scrollIntoView({block: 'center'});
 }
 

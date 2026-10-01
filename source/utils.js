@@ -47,6 +47,13 @@ function invertedTextColor(rgaText) {
     return (r * 0.299 + g * 0.587 + b * 0.114) > 176 ? '#000000' : '#FFFFFF';
 }
 
+// Same result as element.innerText for the inline instruction HTML (runs of CSS white space collapse to a single
+// space, and leading/trailing white space is dropped), but read from textContent so it doesn't need layout.
+// innerText forces layout, which is very slow for sections the browser skips with content-visibility
+function collapsedText(element) {
+    return element.textContent.replace(/[ \t\n\r]+/g, ' ').replace(/^ | $/g, '');
+}
+
 // Escapes text so it can be safely concatenated into an innerHTML string
 function escapeHtml(text) {
     return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

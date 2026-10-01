@@ -113,7 +113,7 @@ function idOnClick(event) {
 }
 
 function operationOnClick(event) {
-    var opcode = event.target.innerText;
+    var opcode = collapsedText(event.target);
     let parent = event.target.parentElement;
     // id will be of "instruction_x"
     var instruction = parseInt(parent.id.substring(parent.id.indexOf('_') + 1));
@@ -227,24 +227,24 @@ $('#copyToClipboard').on('click', function() {
     for (let i = 0; i < instruction_divs.length; i++) {
         let instruction_div = instruction_divs[i];
         // strip the [123] number from the front
-        let offset =  instruction_div.innerText.indexOf(']') + 3;
-        let opcode = (instruction_div.childElementCount > 2) ? instruction_div.children[1].innerText : '';
+        const instruction_text = collapsedText(instruction_div);
+        let offset = instruction_text.indexOf(']') + 3;
+        let opcode = (instruction_div.childElementCount > 2) ? collapsedText(instruction_div.children[1]) : '';
 
         if (debugStringMap.has(i)) {
-            let instruction_text = instruction_div.innerText.substr(offset);
-            clipboard += instruction_text.replace("click to view", "\"" + debugStringMap.get(i) + "\"\n");
+            clipboard += instruction_text.substr(offset).replace("click to view", "\"" + debugStringMap.get(i) + "\"\n");
         } else if (opcode == 'OpSwitch' || opcode == 'OpPhi' || opcode == 'OpGroupMemberDecorate') {
             // The HTML will look like
             //      <a/> " (Case " <a/> " : " <a/> ")"
             // So can rejoin by collecting all the children
             for (let i = 1; i < instruction_div.childElementCount; i++) {
                 if (i != 1) clipboard += ' ';
-                clipboard += instruction_div.children[i].innerText;
+                clipboard += collapsedText(instruction_div.children[i]);
             }
             clipboard += '\n';
         } else {
             // normal case
-            clipboard += instruction_div.innerText.substr(offset) + '\n';
+            clipboard += instruction_text.substr(offset) + '\n';
         }
     }
 
