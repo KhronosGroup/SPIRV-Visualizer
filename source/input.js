@@ -23,7 +23,7 @@ function fileSelected(data, filename) {
     if (filename == undefined) {
         filename = 'unknown';
     }
-    document.getElementById('fileSelectName').innerHTML = 'Loaded: <span style="color : navajowhite">' + filename + '</span>';
+    document.getElementById('fileSelectName').innerHTML = 'Loaded: <span style="color : navajowhite">' + escapeHtml(filename) + '</span>';
 
     // Toggle div to be displayed
     // remove the rest as currently not support reloading spir-v without page refresh
@@ -126,6 +126,19 @@ function debugStringOnClick(event) {
     var instruction = parseInt(parent.id.substring(parent.id.indexOf('_') + 1));
     displayDebugString(instruction);
 }
+
+// A single delegated listener instead of one per element
+// Large modules have so many elements that binding each one with jQuery overflows the call stack
+document.getElementById('disassembleDisplayDiv').addEventListener('click', function(event) {
+    const classList = event.target.classList;
+    if (classList.contains('id')) {
+        idOnClick(event);
+    } else if (classList.contains('operation')) {
+        operationOnClick(event);
+    } else if (classList.contains('debugString')) {
+        debugStringOnClick(event);
+    }
+});
 
 // Some settings are easier to reset than have stateful logic of inputs outside this file
 function resetSettings() {

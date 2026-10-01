@@ -60,9 +60,9 @@ const SPV_ENV_VULKAN_1_1 = 0x00_01_01_00;
 const SPV_ENV_VULKAN_1_2 = 0x00_01_03_00;
 const SPV_ENV_VULKAN_1_3 = 0x00_01_05_00;
 
-// number of json files needed to be loaded
+// number of json files needed to be loaded (spirv.json + core grammar + every extended instruction set)
 var jsonRefCount = 0;
-const jsonRefTotal = 9;
+var jsonRefTotal = 0;  // set in loadSpirv()
 
 function spirvJsonLoaded() {
     jsonRefCount++;
@@ -102,27 +102,77 @@ const ExtInstTypeNonSemanitcClspvReflection = 3;
 const ExtInstTypeNonSemanitcDebugInfo = 4;
 const ExtInstTypeDebugInfo = 5;
 const ExtInstTypeOpenCLDebug100 = 6;
-// TODO - add VkspReflection
+const ExtInstTypeNonSemanitcVkspReflection = 7;
+const ExtInstTypeNonSemanitcDebugBreak = 8;
+const ExtInstTypeNonSemanitcGraphDebugInfo = 9;
+const ExtInstTypeAmdShaderExplicitVertexParameter = 10;
+const ExtInstTypeAmdShaderTrinaryMinmax = 11;
+const ExtInstTypeAmdGcnShader = 12;
+const ExtInstTypeAmdShaderBallot = 13;
+const ExtInstTypeTosa = 14;
+const ExtInstTypeArmMotionEngine = 15;
+const ExtInstTypeArmExperimentalMLOperations = 16;
+
+// How each OpExtInstImport name maps to a grammar file
+// Matches the same way as spvExtInstImportTypeGet() in SPIRV-Tools (exact name, or a prefix for versioned names)
+const ExtInstSets = [
+    {type: ExtInstTypeGlslStd450, name: 'GLSL.std.450', file: 'extinst.glsl.std.450.grammar.json'},
+    {type: ExtInstTypeOpenCLStd, name: 'OpenCL.std', file: 'extinst.opencl.std.100.grammar.json'},
+    {type: ExtInstTypeDebugInfo, name: 'DebugInfo', file: 'extinst.debuginfo.grammar.json'},
+    {type: ExtInstTypeOpenCLDebug100, name: 'OpenCL.DebugInfo.100', file: 'extinst.opencl.debuginfo.100.grammar.json'},
+    // Later versions are supersets that share the same instruction numbering, so the newest grammar handles all of them
+    {
+        type: ExtInstTypeNonSemanitcDebugInfo,
+        prefix: 'NonSemantic.Shader.DebugInfo.',
+        file: 'extinst.nonsemantic.shader.debuginfo.grammar.json'
+    },
+    {
+        type: ExtInstTypeNonSemanitcGraphDebugInfo,
+        prefix: 'NonSemantic.Graph.DebugInfo.',
+        file: 'extinst.nonsemantic.graph.debuginfo.grammar.json'
+    },
+    {
+        type: ExtInstTypeNonSemanitcClspvReflection,
+        prefix: 'NonSemantic.ClspvReflection.',
+        file: 'extinst.nonsemantic.clspvreflection.grammar.json'
+    },
+    {
+        type: ExtInstTypeNonSemanitcVkspReflection,
+        prefix: 'NonSemantic.VkspReflection.',
+        file: 'extinst.nonsemantic.vkspreflection.grammar.json'
+    },
+    {type: ExtInstTypeNonSemanitcDebugPrintf, name: 'NonSemantic.DebugPrintf', file: 'extinst.nonsemantic.debugprintf.grammar.json'},
+    {type: ExtInstTypeNonSemanitcDebugBreak, name: 'NonSemantic.DebugBreak', file: 'extinst.nonsemantic.debugbreak.grammar.json'},
+    {
+        type: ExtInstTypeAmdShaderExplicitVertexParameter,
+        name: 'SPV_AMD_shader_explicit_vertex_parameter',
+        file: 'extinst.spv-amd-shader-explicit-vertex-parameter.grammar.json'
+    },
+    {
+        type: ExtInstTypeAmdShaderTrinaryMinmax,
+        name: 'SPV_AMD_shader_trinary_minmax',
+        file: 'extinst.spv-amd-shader-trinary-minmax.grammar.json'
+    },
+    {type: ExtInstTypeAmdGcnShader, name: 'SPV_AMD_gcn_shader', file: 'extinst.spv-amd-gcn-shader.grammar.json'},
+    {type: ExtInstTypeAmdShaderBallot, name: 'SPV_AMD_shader_ballot', file: 'extinst.spv-amd-shader-ballot.grammar.json'},
+    {type: ExtInstTypeTosa, name: 'TOSA.001000.1', file: 'extinst.tosa.001000.1.grammar.json'},
+    {type: ExtInstTypeArmMotionEngine, name: 'Arm.MotionEngine.100', file: 'extinst.arm.motion-engine.100.grammar.json'},
+    {
+        type: ExtInstTypeArmExperimentalMLOperations,
+        prefix: 'Arm.ExperimentalMLOperations.',
+        file: 'extinst.arm.experimental-ml-operations.grammar.json'
+    },
+];
 
 // Call at OpExtInstImport to save mapping, retrieve with getExtInstructions/getExtOperands
 spirv.setResultToExtImportMap = function(extendedName, resultId) {
-    if (extendedName.includes("GLSL.std.450")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeGlslStd450);
-    } else if (extendedName.includes("OpenCL.std")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeOpenCLStd);
-    } else if (extendedName.includes("NonSemantic.DebugPrintf")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcDebugPrintf);
-    } else if (extendedName.includes("NonSemantic.ClspvReflection")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcClspvReflection);
-    } else if (extendedName.includes("NonSemantic.Shader.DebugInfo")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeNonSemanitcDebugInfo);
-    } else if (extendedName.includes("DebugInfo")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeDebugInfo);
-    } else if (extendedName.includes("OpenCL.DebugInfo.100")) {
-        spirv.ResultToExtImport.set(resultId, ExtInstTypeOpenCLDebug100);
-    } else {
-        console.log('Warning: Full support for ' + extendedName + ' has not been added. Good chance things might break.');
+    for (const set of ExtInstSets) {
+        if ((set.name && extendedName == set.name) || (set.prefix && extendedName.startsWith(set.prefix))) {
+            spirv.ResultToExtImport.set(resultId, set.type);
+            return;
+        }
     }
+    console.log('Warning: Full support for ' + extendedName + ' has not been added. Good chance things might break.');
 }
 spirv.getExtInstructions = function(setId) {
     const id = spirv.ResultToExtImport.get(setId);
@@ -193,81 +243,34 @@ function loadCoreGrammar() {
 
 // Extended Instruction sets
 function loadExtInstImport() {
-    $.getJSON(spirv.GrammarPath + 'extinst.glsl.std.450.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeGlslStd450, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeGlslStd450).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
+    for (const set of ExtInstSets) {
+        $.getJSON(spirv.GrammarPath + set.file, function(json) {
+            const instructions = new Map();
+            for (let i = 0; i < json.instructions.length; i++) {
+                instructions.set(json.instructions[i].opcode, json.instructions[i]);
+            }
+            spirv.ExtInstructions.set(set.type, instructions);
 
-    $.getJSON(spirv.GrammarPath + 'extinst.opencl.std.100.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeOpenCLStd, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeOpenCLStd).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-
-    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.debugprintf.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugPrintf, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugPrintf).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-
-    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.clspvreflection.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcClspvReflection, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcClspvReflection).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-        spirvJsonLoaded();
-    });
-
-    $.getJSON(spirv.GrammarPath + 'extinst.nonsemantic.shader.debuginfo.100.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeNonSemanitcDebugInfo, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeNonSemanitcDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-
-        spirv.ExtOperands.set(ExtInstTypeNonSemanitcDebugInfo, new Map());
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirv.ExtOperands.get(ExtInstTypeNonSemanitcDebugInfo).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
-
-    $.getJSON(spirv.GrammarPath + 'extinst.debuginfo.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeDebugInfo, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeDebugInfo).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-
-        spirv.ExtOperands.set(ExtInstTypeDebugInfo, new Map());
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirv.ExtOperands.get(ExtInstTypeDebugInfo).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
-
-    $.getJSON(spirv.GrammarPath + 'extinst.opencl.debuginfo.100.grammar.json', function(json) {
-        spirv.ExtInstructions.set(ExtInstTypeOpenCLDebug100, new Map());
-        for (let i = 0; i < json.instructions.length; i++) {
-            spirv.ExtInstructions.get(ExtInstTypeOpenCLDebug100).set(json.instructions[i].opcode, json.instructions[i]);
-        }
-
-        spirv.ExtOperands.set(ExtInstTypeOpenCLDebug100, new Map());
-        for (let i = 0; i < json.operand_kinds.length; i++) {
-            spirv.ExtOperands.get(ExtInstTypeOpenCLDebug100).set(json.operand_kinds[i].kind, json.operand_kinds[i]);
-        }
-        spirvJsonLoaded();
-    });
+            if (json.operand_kinds) {
+                const operands = new Map();
+                for (let i = 0; i < json.operand_kinds.length; i++) {
+                    operands.set(json.operand_kinds[i].kind, json.operand_kinds[i]);
+                }
+                spirv.ExtOperands.set(set.type, operands);
+            }
+            spirvJsonLoaded();
+        }).fail(function() {
+            // Don't block the whole page if a SPIRV-Headers version is missing a grammar file
+            console.log('Warning: failed to load ' + set.file + ', instructions from that set will be shown as raw numbers');
+            spirvJsonLoaded();
+        });
+    }
 }
 
 // Init into Loading SPIR-V grammar files
 function loadSpirv(spirvHeaderPath) {
     spirv.GrammarPath = spirvHeaderPath;
+    jsonRefTotal = 2 + ExtInstSets.length;
     loadSpirvJson();
     loadCoreGrammar();
     loadExtInstImport();
@@ -287,25 +290,36 @@ spirv.validateHeader = function(header) {
     assert(header[4] == 0, 'Only support schema 0 currently');
 }
 
+const utf8Decoder = new TextDecoder('utf-8');
+
+// Literal strings are UTF-8 octets, packed 4 per word starting with the lowest-order byte, and null terminated
 // @param words Slice of array of words in instruction
 spirv.getLiteralString = function(words) {
-    let result = '';
+    const bytes = new Uint8Array(words.length * 4);
+    let length = 0;
     for (let i = 0; i < words.length; i++) {
-        let word = words[i];
-        let char0 = (word >> 24) & 0xFF;
-        let char1 = (word >> 16) & 0xFF;
-        let char2 = (word >> 8) & 0xFF;
-        let char3 = word & 0xFF;
-
-        result += char3 ? String.fromCharCode(char3) : '';
-        result += char2 ? String.fromCharCode(char2) : '';
-        result += char1 ? String.fromCharCode(char1) : '';
-        result += char0 ? String.fromCharCode(char0) : '';
-
-        // null terminated
-        if ((char0 == 0) || (char1 == 0) || (char2 == 0) || (char3 == 0)) {
-            break;
+        const word = words[i];
+        for (let shift = 0; shift < 32; shift += 8) {
+            const byte = (word >>> shift) & 0xFF;
+            if (byte == 0) {
+                return utf8Decoder.decode(bytes.subarray(0, length));
+            }
+            bytes[length++] = byte;
         }
     }
-    return result;
+    // Not null terminated, decode what is there
+    return utf8Decoder.decode(bytes.subarray(0, length));
+}
+
+// Number of words a literal string takes up, including the word holding the null terminator
+// Can't be calculated from the decoded string length as UTF-8 characters can be multiple bytes
+// @param words Slice of array of words in instruction
+spirv.getLiteralStringWordCount = function(words) {
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        if (((word & 0xFF) == 0) || ((word & 0xFF00) == 0) || ((word & 0xFF0000) == 0) || ((word & 0xFF000000) == 0)) {
+            return i + 1;
+        }
+    }
+    return words.length;
 }

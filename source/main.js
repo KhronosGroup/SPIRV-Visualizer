@@ -43,6 +43,7 @@ function resetTracking() {
     debugStringMap = new Map();
     constantValues = new Map();
     nonSemanticInstructions = new Map();
+    spirv.ResultToExtImport = new Map();
 }
 
 // @param binary ArrayBuffer of spirv module binary file
@@ -113,6 +114,9 @@ function parseBinaryStream(binary) {
         const instruction = module[i];
         const instructionLength = instruction >>> spirv.Meta.WordCountShift;
         const opcode = instruction & spirv.Meta.OpCodeMask;
+        // A zero word count would never advance |i|
+        assert(instructionLength > 0 && i + instructionLength <= module.length,
+               'Instruction at word ' + i + ' has an invalid word count of ' + instructionLength);
 
         // Get type and result according to instruction layout
         const hasResultType = spirv.OpcodesWithResultType.includes(opcode);
@@ -120,6 +124,8 @@ function parseBinaryStream(binary) {
         const opcodeResultType = hasResultType ? module[i + 1] : undefined;
         const opcodeResult = hasResult ? (hasResultType ? module[i + 2] : module[i + 1]) : undefined;
         var instructionInfo = spirv.Instructions.get(opcode);
+        assert(instructionInfo != undefined,
+               'Unknown opcode ' + opcode + ' at word ' + i + ', the SPIR-V grammar might be older than the module');
         // Holds operands that are an id (non-literals)
         var operandIdList = [];
         // gets which word index each item is
@@ -200,7 +206,10 @@ function parseBinaryStream(binary) {
                 case spirv.Enums.Op.OpReturnValue:
                 case spirv.Enums.Op.OpKill:
                 case spirv.Enums.Op.OpUnreachable:
-                case spirv.Enums.Op.TerminateInvocation:
+                case spirv.Enums.Op.OpTerminateInvocation:
+                case spirv.Enums.Op.OpTerminateRayKHR:
+                case spirv.Enums.Op.OpIgnoreIntersectionKHR:
+                case spirv.Enums.Op.OpEmitMeshTasksEXT:
                     currentBlock.end = instructionCount;
                     break;
             };
@@ -380,7 +389,8 @@ function parseBinaryStream(binary) {
                     }
 
                 } else if (kind == 'LiteralString') {
-                    var literalString = spirv.getLiteralString(module.slice(i + operandOffset, i + instructionLength));
+                    const literalWords = module.slice(i + operandOffset, i + instructionLength);
+                    var literalString = spirv.getLiteralString(literalWords);
                     // Source strings can be unhelpfully long, so hide by default
                     // If the OpString is too long it can also be unhelpfully long
                     const string_len_threshhold = 300;  // about 3 full lines
@@ -394,13 +404,19 @@ function parseBinaryStream(binary) {
                         instructionString += '</span>'
                     } else {
                         instructionString += ' <span class="operand literal">"'
-                        instructionString += literalString;
+                        instructionString += escapeHtml(literalString);
                         instructionString += '"</span>'
                     }
                     operandNameList.push(operandName);
                     operandWordIndexList.push(operandOffset);
-                    // Add 1 for the null terminator
-                    operandOffset += Math.ceil((literalString.length + 1) / 4);
+                    operandOffset += spirv.getLiteralStringWordCount(literalWords);
+
+                } else if (kind == 'LiteralFloat') {
+                    // single word 32-bit float literal (ex. FPMaxErrorDecorationINTEL)
+                    instructionString += ' ' + createLiteralHtmlString(floatLiteralToString(operand, 0, 32, undefined));
+                    operandNameList.push(operandName);
+                    operandWordIndexList.push(operandOffset);
+                    operandOffset++;
 
                 } else if (kind == 'LiteralInteger') {
                     // single word literal
@@ -423,11 +439,11 @@ function parseBinaryStream(binary) {
 
                     const extInstructionSet = spirv.getExtInstructions(setId);
                     // There can be custom extended instructions starting with SPIR-V 1.6
-                    const extOpname = (extInstructionSet == undefined) ? operand : extInstructionSet.get(operand).opname;
+                    // or the grammar might be older than the module, so fall back to the raw number
+                    const extInstructionInfo = (extInstructionSet == undefined) ? undefined : extInstructionSet.get(operand);
+                    const extOpname = (extInstructionInfo == undefined) ? operand : extInstructionInfo.opname;
                     // This will have the while loop use the extended grammar
-                    if (extInstructionSet) {
-                        extendedOperandInfo = extInstructionSet.get(operand);
-                    }
+                    extendedOperandInfo = extInstructionInfo;
                     instructionString += ' ' + createLiteralHtmlString(extOpname);
                     operandNameList.push(operandName);
                     operandWordIndexList.push(operandOffset);
@@ -472,18 +488,11 @@ function parseBinaryStream(binary) {
                             // 4 instrutions is a normal 32 bit width, extra instruction length is another byte
                             width = instructionLength - 3;
                             assert(width <= 2, 'parsing ' + 32 * width + ' bit float is not supported');
-                            var lowBits = module[i + 3].toString(2);
-                            lowBits = new Array(32 - lowBits.length).fill('0').join('') + lowBits;
-                            if (width == 2) {
-                                // 64-bit Float
-                                let highBits = module[i + 4].toString(2);
-                                highBits = new Array(32 - highBits.length).fill('0').join('') + highBits;
-                                let bits = highBits + lowBits;
-                                operandValue = parseFloatString(bits);
-                            } else {
-                                // 32-bit float
-                                operandValue = parseFloatString(lowBits);
-                            }
+                            const typeOffset = contextInstruction.moduleOffset;
+                            const typeWidth = module[typeOffset + 2];
+                            // OpTypeFloat has an optional Floating Point Encoding operand
+                            const typeEncoding = ((module[typeOffset] >>> spirv.Meta.WordCountShift) > 3) ? module[typeOffset + 3] : undefined;
+                            operandValue = floatLiteralToString(module[i + 3], module[i + 4], typeWidth, typeEncoding);
                         } else {
                             assert(false, 'OpConstant/OpSpecConstant result type is not OpTypeInt or OpTypeFloat');
                         }
@@ -569,14 +578,19 @@ function parseBinaryStream(binary) {
                     // If extended instruction might need to check grammar file
                     if (!operandInfo && extendedOperandInfo) {
                         var setId = module[i + 3];
-                        operandInfo = spirv.getExtOperands(setId).get(kind);
+                        const extOperands = spirv.getExtOperands(setId);
+                        operandInfo = extOperands ? extOperands.get(kind) : undefined;
                     }
                     assert(operandInfo != undefined, 'Unknown grammar \'kind\' of ' + kind);
 
+                    // Every path here consumes exactly one word, even if the value is not in the grammar,
+                    // otherwise the rest of the operands are matched against the wrong grammar entries
                     if (operandInfo.enumerants) {
                         var enumerantsLength = operandInfo.enumerants.length;
                         var bitEnumString = '';
                         var foundValue = false;
+                        // Bits of a BitEnum that matched an enumerant
+                        var knownBits = 0;
 
                         for (let i = 0; i < enumerantsLength; i++) {
                             var value = operandInfo.enumerants[i].value;
@@ -596,6 +610,7 @@ function parseBinaryStream(binary) {
                                         parameterOperandQueue.push(operandInfo.enumerants[i].parameters);
                                     }
                                     foundValue = true;
+                                    knownBits |= value;
                                 }
                             } else if (value == operand) {
                                 // Expect a single value, not flags if not BitEnum
@@ -610,22 +625,31 @@ function parseBinaryStream(binary) {
                             }
                         }
 
-                        if (foundValue == true) {
-                            operandWordIndexList.push(operandOffset);
-                            operandOffset++;
-                            operandNameList.push(operandName);
-
-                            // If any parameter was found, enqueue it right away
-                            if (parameterOperandQueue.length != 0) {
-                                parameterOperandInfo = parameterOperandQueue.shift();
+                        if (operandInfo.category == 'BitEnum') {
+                            // Any bits not in the grammar are shown as a hex value
+                            const unknownBits = (operand & ~knownBits) >>> 0;
+                            if (unknownBits != 0 || foundValue == false) {
+                                const unknownString = '0x' + unknownBits.toString(16);
+                                bitEnumString = foundValue ? (bitEnumString + ' | ' + unknownString) : unknownString;
                             }
-
                             // Need to formulate string after finding all enums as well as counter operand
-                            if (operandInfo.category == 'BitEnum') {
-                                instructionString += ` <span class="operand enumerant">${bitEnumString}</span>`;
-                            }
+                            instructionString += ` <span class="operand enumerant">${bitEnumString}</span>`;
+                        } else if (foundValue == false) {
+                            // ValueEnum value not in the grammar
+                            instructionString += ' ' + createLiteralHtmlString(operand);
                         }
+
+                        // If any parameter was found, enqueue it right away
+                        if (parameterOperandQueue.length != 0) {
+                            parameterOperandInfo = parameterOperandQueue.shift();
+                        }
+                    } else {
+                        // A literal kind not handled above, show the raw word
+                        instructionString += ' ' + createLiteralHtmlString(operand);
                     }
+                    operandWordIndexList.push(operandOffset);
+                    operandOffset++;
+                    operandNameList.push(operandName);
                 }
             }
 
@@ -794,10 +818,7 @@ function parseBinaryStream(binary) {
             }
         }
 
-        // Apply jquery events
-        $('.id').on('click', idOnClick);
-        $('.operation').on('click', operationOnClick);
-        $('.debugString').on('click', debugStringOnClick);
+        // Click events are handled by a single delegated listener on displayDiv (see input.js)
     }
 
     // Nothing has failed
@@ -1287,7 +1308,7 @@ function dagNodeOnHover(node) {
 function dagNodeOnMove(node) {
     // need small gap to prevent hovering over the tool tip itself
     // also the pointer gets in the way
-    tooltipDiv.style('left', (event.clientX + 10) + 'px').style('top', (event.clientY + 10) + 'px');
+    tooltipDiv.style('left', (d3.event.clientX + 10) + 'px').style('top', (d3.event.clientY + 10) + 'px');
 }
 
 // Restore node original color

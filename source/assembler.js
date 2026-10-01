@@ -85,7 +85,8 @@ function assemble(spirvText, version) {
             let replaceString = line.substring(quoteStart + 1, quoteEnd);
             literalString = replaceString + '\0';
             // Substract 1 because there is already 1 word accounted for the string in line
-            extraWords = Math.ceil(literalString.length / 4) - 1;
+            // Use the UTF-8 byte length as non-ASCII characters are more than 1 byte
+            extraWords = Math.ceil(encoder.encode(literalString).length / 4) - 1;
             // mark the string operand with something that takes 1 index after split()
             line = line.replace('"' + replaceString + '"', 'REPLACE');
         }
