@@ -104,6 +104,18 @@ function parseBinaryStream(binary) {
     // Map of where all branch/switches jump too. Value is array of Label IDs
     var branchMap = new Map();
 
+    // Map of block (instruction index of the OpLabel) to a Set of CFG tags (ex. "Loop Header 12") to display on it
+    // A Set as a block can be tagged the same way more than once (ex. multiple branches to a loop merge)
+    var blockTags = new Map();
+    function addBlockTag(block, tag) {
+        let tags = blockTags.get(block);
+        if (tags == undefined) {
+            tags = new Set();
+            blockTags.set(block, tags);
+        }
+        tags.add(tag);
+    }
+
     // There is a 2 pass system through the stream
     //   First pass: Setup all the DOM elements
     //   Second pass: Edit the DOM elements
@@ -732,21 +744,20 @@ function parseBinaryStream(binary) {
 
         var currentInstruction = instructionMap.get(instructionCount)
 
-        // Add extra class to blocks for CFG
+        // Tag blocks for CFG
         switch (opcode) {
             case spirv.Enums.Op.OpLoopMerge:
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
                 var continueBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 2]))).block;
-                document.getElementById('label-' + headerBlock).className += (' loopHeaderBlock-' + headerBlock);
-                document.getElementById('label-' + mergeBlock).className += (' loopMergeBlock-' + headerBlock);
-                document.getElementById('label-' + continueBlock).className += (' loopContinueBlock-' + headerBlock);
+                addBlockTag(headerBlock, 'Loop Header ' + headerBlock);
+                addBlockTag(mergeBlock, 'Loop Merge ' + headerBlock);
+                addBlockTag(continueBlock, 'Loop Continue ' + headerBlock);
 
                 var mergeBlockResult = instructionMap.get(mergeBlock).result
                 for (let key of branchMap.keys()) {
                     if (branchMap.get(key).includes(mergeBlockResult)) {
-                        block = instructionMap.get(key).block
-                        document.getElementById('label-' + block).className += (' loopBreakBlock-' + headerBlock);
+                        addBlockTag(instructionMap.get(key).block, 'Loop Break ' + headerBlock);
                     }
                 }
 
@@ -754,13 +765,13 @@ function parseBinaryStream(binary) {
             case spirv.Enums.Op.OpSelectionMerge:
                 var headerBlock = currentInstruction.block;
                 var mergeBlock = (instructionMap.get(resultToInstructionMap.get(module[i + 1]))).block;
-                document.getElementById('label-' + headerBlock).className += (' selectionHeaderBlock-' + headerBlock);
-                document.getElementById('label-' + mergeBlock).className += (' selectionMergeBlock-' + headerBlock);
+                addBlockTag(headerBlock, 'Selection Header ' + headerBlock);
+                addBlockTag(mergeBlock, 'Selection Merge ' + headerBlock);
                 break;
             case spirv.Enums.Op.OpReturn:
             case spirv.Enums.Op.OpReturnValue:
                 var block = currentInstruction.block;
-                document.getElementById('label-' + block).className += ' returnBlock-' + block;
+                addBlockTag(block, 'Return ' + block);
                 break;
         }
 
@@ -781,40 +792,17 @@ function parseBinaryStream(binary) {
     // Post processing
     // Anything to be done after both passes are made
     {
-        // Copy CFG class names from blocks to OpLabel
-        var labelDivs = document.getElementsByClassName('label');
-        for (let i = 0; i < labelDivs.length; i++) {
-            for (let value of labelDivs[i].classList.values()) {
-                if (value.startsWith('label') || (value.includes('-') == false)) {
-                    continue;
-                }
-
-                // Create span to add html text
-                var newDiv = document.createElement('span');
-                newDiv.className = 'blockType';
-
-                var instructionId = value.substring(value.indexOf('-') + 1);
-                // String switch case to find all the classes being used
-                if (value.startsWith('loopHeaderBlock')) {
-                    newDiv.innerHTML = ` [Loop Header ${instructionId}]`;
-                } else if (value.startsWith('loopMergeBlock')) {
-                    newDiv.innerHTML = ` [Loop Merge ${instructionId}]`;
-                } else if (value.startsWith('loopContinueBlock')) {
-                    newDiv.innerHTML = ` [Loop Continue ${instructionId}]`;
-                } else if (value.startsWith('loopBreakBlock')) {
-                    newDiv.innerHTML = ` [Loop Break ${instructionId}]`;
-                } else if (value.startsWith('selectionHeaderBlock')) {
-                    newDiv.innerHTML = ` [Selection Header ${instructionId}]`;
-                } else if (value.startsWith('selectionMergeBlock')) {
-                    newDiv.innerHTML = ` [Selection Merge ${instructionId}]`;
-                } else if (value.startsWith('returnBlock')) {
-                    newDiv.innerHTML = ` [Return ${instructionId}]`;
-                } else {
-                    assert(false, 'Unknown label class: ' + value);
-                }
-
-                newDiv.innerHTML + '<br>'
-                labelDivs[i].prepend(newDiv);
+        // Add the CFG tags to each OpLabel
+        // This used to round trip through class names on the block divs and loop over a live
+        // getElementsByClassName() collection, but prepend() invalidates that collection so every
+        // iteration re-walked the whole document, which was most of the load time for large modules
+        for (const [block, tags] of blockTags) {
+            const labelDiv = document.getElementById('label-' + block);
+            for (const tag of tags) {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'blockType';
+                tagSpan.textContent = ` [${tag}]`;
+                labelDiv.prepend(tagSpan);
             }
         }
 
