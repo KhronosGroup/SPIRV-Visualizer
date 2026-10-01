@@ -150,6 +150,7 @@ function toggleDisassemblyInput(turnOn) {
     if (turnOn) {
         displayDiv.style.display = 'none';
         inputDiv.style.display = 'inline-block';
+        resetSections();
         displayDiv.innerHTML = '';
     } else {
         displayDiv.style.display = 'inline-block';
