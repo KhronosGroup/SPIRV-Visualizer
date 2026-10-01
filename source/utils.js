@@ -32,6 +32,23 @@ function mapValueToEnumKey(enumObject, valueToFine) {
     return 'VALUE_NOT_FOUND';
 }
 
+// A different color for each value of t in [0, 1], going around the color wheel.
+// Same values as d3.interpolateRainbow (a cubehelix with varying saturation and lightness)
+// so the DAG looks the same as when it used d3. Returns "rgb(r, g, b)"
+function rainbowColor(t) {
+    const ts = Math.abs(t - 0.5);
+    const h = (360 * t - 100 + 120) * Math.PI / 180;
+    const l = 0.8 - 0.9 * ts;
+    const a = (1.5 - 1.5 * ts) * l * (1 - l);
+    const cosh = Math.cos(h);
+    const sinh = Math.sin(h);
+    const channel = (value) => Math.max(0, Math.min(255, Math.round(255 * value)));
+    const r = channel(l + a * (-0.14861 * cosh + 1.78277 * sinh));
+    const g = channel(l + a * (-0.29227 * cosh - 0.90649 * sinh));
+    const b = channel(l + a * (1.97294 * cosh));
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
 // input example: "rgb(0, 191, 255)"
 // returns black or white
 function invertedTextColor(rgaText) {

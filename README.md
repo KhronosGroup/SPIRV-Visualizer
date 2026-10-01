@@ -37,4 +37,4 @@ The visualizer uses the SPIR-V Grammar JSON files to parse out all the instructi
 
 There is a 2 pass system, the first pass tracks all the instructions, the second pass handles all the HTML/CSS changes.
 
-This project makes use of the d3.js library to handle all the data driven UI diagrams.
+The DAG shown for an instruction is laid out and drawn as SVG by `source/dag.js`, no libraries are needed for it.

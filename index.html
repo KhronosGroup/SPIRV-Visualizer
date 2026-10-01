@@ -66,6 +66,7 @@
 
                 <!-- Handles drawing and displaying the dag -->
                 <svg id="dagSvg"></svg>
+                <div id="dagTooltip" class="tooltip"></div>
 
                 <!-- On Load instructions - Will be removed from DOM later -->
                 <div id="preLoad">
@@ -87,14 +88,13 @@
     </div>
     <div id="alertBox"></div>
   <script src="lib/jquery-3.5.1.min.js"></script>
-  <script src="lib/d3.v5.min.js"></script>
-  <script src="lib/d3-dag.min.js"></script>
 
   <script src="source/utils.js"></script>
   <script src="source/input.js"></script>
   <script src="source/spirv.js"></script>
   <script src="source/assembler.js"></script>
   <script src="source/sections.js"></script>
+  <script src="source/dag.js"></script>
   <script src="source/main.js"></script>
   </body>
 </html>

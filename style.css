@@ -171,6 +171,17 @@ a.id:hover, a.operation:hover {
     color : darkmagenta;
 }
 
+/* Follows the mouse over a dag node */
+.tooltip {
+    position: absolute;
+    opacity: 0;
+    background-color: white;
+    border: solid;
+    border-width: 2px;
+    border-radius: 5px;
+    padding: 5px;
+}
+
 .tooltipIndex {
     color : #1b5510;
 }

@@ -13,16 +13,6 @@ SPDX-License-Identifier = "Apache-2.0"
 [[annotations]]
 precedence = "closest"
 path = [
-    "lib/d3-dag.min.js",
-    "lib/d3-dag.js",
-    "lib/d3.v5.min.js",
-]
-SPDX-FileCopyrightText = "Erik Brinkman"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-precedence = "closest"
-path = [
     "lib/qunit/qunit-2.13.0.css",
     "lib/qunit/qunit-2.13.0.min.js",
     "lib/jquery-3.5.1.min.js",

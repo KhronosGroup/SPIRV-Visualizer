@@ -830,19 +830,26 @@ function createLiteralHtmlString(literal) {
     return `<span class="operand literal">${literal}</span>`;
 }
 
-// Holds the current dag data used by d3
+// Holds the current dag data, each entry is {id, text, parentIds} with the instruction index as id
 var liveDagData = [];
+// Ids in liveDagData, to find duplicates without searching the array
+var liveDagIds = new Set();
 // Depth of 1 is the base node
 var dagDepth = 0;
 var maxDagDepth = 4;
 // Needed because only want to leave max node if needed else solver will fail
 var maxDepthHit = false;
+// Nodes with a negative id are placeholders, not instructions
 const dagMaxHitNodeId = -1;
 const dagMaxHitNode = {
     'id': dagMaxHitNodeId,
     'text': ['...'],
-    'parentIds': []
+    'parentIds': [],
+    'tooltip': 'max DAG depth hit'
 };
+// A type or constant can have thousands of consumers, only show this many of them
+const maxDagConsumers = 48;
+const dagMoreConsumersNodeId = -2;
 
 const instructionHighlightOff = '#ffffff';    // default state
 const instructionHighlightOn = '#c9cdff';     // when in use in dag
@@ -867,25 +874,24 @@ function clearDagData() {
         }
     }
     liveDagData = [];
+    liveDagIds = new Set();
     dagDepth = 0;
     maxDepthHit = false;
 }
 
 function clearDagDiv() {
     clearDagData();
-    d3.select('#dagSvg').selectAll('*').remove();
+    document.getElementById('dagSvg').replaceChildren();
 }
 
 // @param instruction Which instruction in the module
 // @param parents The parent nodes of the current instruction
 function fillDagData(instruction, parents) {
     // ignore if already in liveDagData
-    // TODO this is poor search, but should not be a bottleneck for now
-    for (let i = 0; i < liveDagData.length; i++) {
-        if (liveDagData[i].id == instruction) {
-            return;
-        }
+    if (liveDagIds.has(instruction)) {
+        return;
     }
+    liveDagIds.add(instruction);
 
     var instructionFn = $('#instruction_' + instruction);
     var instructionDiv = instructionFn[0];
@@ -955,10 +961,10 @@ function fillDagBackward(instruction, operand, entryCall) {
         parents = instructionMap.get(instruction).parentInstructions;
     }
 
-    // D3 is expecting an array, not a set, but have to make sure no duplicates
-    // otherwise it will form dead nodes. This is a central spot to de-dup the array
+    // Make sure there are no duplicates, otherwise they would form dead nodes.
+    // This is a central spot to de-dup the array
     //
-    // Need to also prevent handing D3 a cycle and removing any node already seen.
+    // Need to also prevent a cycle in the DAG by removing any node already seen.
     // Doing it here is the easiest spot to do it while building the DAG
     parents = parents.filter(function(element, index) {
         return (parents.indexOf(element) == index) && (!seenDagNodesSet.has(element));
@@ -1012,10 +1018,20 @@ function displayDagOperand(operand, instruction) {
 function displayDagResult(result, instruction) {
     clearDagData();
     fillDagData(instruction, []);
-    // Set 2nd level of graph with all consumers of the reusltID
+    // Set 2nd level of graph with the consumers of the result ID
     var consumers = idConsumers[result];
-    for (let i = 0; i < consumers.length; i++) {
+    const shownConsumers = Math.min(consumers.length, maxDagConsumers);
+    for (let i = 0; i < shownConsumers; i++) {
         fillDagData(consumers[i], [instruction]);
+    }
+    if (consumers.length > shownConsumers) {
+        const notShown = consumers.length - shownConsumers;
+        liveDagData.push({
+            'id': dagMoreConsumersNodeId,
+            'text': ['...', `${notShown} more consumers`],
+            'parentIds': [instruction],
+            'tooltip': `${notShown} more consumers of %${result} are not shown (max is ${maxDagConsumers})`
+        });
     }
     drawDag(liveDagData);
 }
@@ -1157,23 +1173,22 @@ function insertConstants(toggle) {
 // Used to hold a different color for each node
 var dagColorMap = {};
 
-// create a tooltip
-var tooltipDiv = d3.select('#dagDiv')
-                     .append('div')
-                     .style('position', 'absolute')
-                     .style('opacity', 0)
-                     .attr('class', 'tooltip')
-                     .style('background-color', 'white')
-                     .style('border', 'solid')
-                     .style('border-width', '2px')
-                     .style('border-radius', '5px')
-                     .style('padding', '5px');
+// Shown when hovering a dag node, follows the mouse
+var tooltipDiv = document.getElementById('dagTooltip');
+
+function tooltipShow(html) {
+    tooltipDiv.innerHTML = html;
+    tooltipDiv.style.opacity = 1;
+}
 
 function tooltipHide() {
-    tooltipDiv.style('opacity', 0)
+    tooltipDiv.style.opacity = 0;
 }
 
 function dagNodeOnClick(node) {
+    if (node.id < 0) {
+        return;  // placeholder node
+    }
     // Snaps to instruction text on click
     var instructionDiv = document.getElementById('instruction_' + node.id);
     uncollapseInstruction(instructionDiv);
@@ -1181,14 +1196,21 @@ function dagNodeOnClick(node) {
     instructionDiv.scrollIntoView({block: 'center'});
 }
 
-// originalColor is optional param used when toggling off
-function dagNodeHighlight(nodeDiv, toggle, originalColor) {
+// @param nodeGroup The <g> of the dag node
+// @param originalColor is optional param used when toggling off
+function dagNodeHighlight(nodeGroup, toggle, originalColor) {
+    const rect = nodeGroup.querySelector('rect');
+    const text = nodeGroup.querySelector('text');
     if (toggle) {
-        nodeDiv.select('rect').attr('fill', 'white').attr('cursor', 'pointer').attr('stroke-width', 3);
-        nodeDiv.select('text').attr('fill', 'black').attr('cursor', 'pointer');
+        rect.setAttribute('fill', 'white');
+        rect.setAttribute('cursor', 'pointer');
+        rect.setAttribute('stroke-width', 3);
+        text.setAttribute('fill', 'black');
+        text.setAttribute('cursor', 'pointer');
     } else {
-        nodeDiv.select('rect').attr('fill', originalColor).attr('stroke-width', 0);
-        nodeDiv.select('text').attr('fill', invertedTextColor(originalColor));
+        rect.setAttribute('fill', originalColor);
+        rect.setAttribute('stroke-width', 0);
+        text.setAttribute('fill', invertedTextColor(originalColor));
     }
 }
 
@@ -1202,14 +1224,17 @@ function instructionHover(event) {
 
     var id = instructionDiv.id;
     var instruction = parseInt(id.substring(id.indexOf('_') + 1));
-    var nodeDiv = d3.select('#node' + instruction);
+    var nodeGroup = document.getElementById('node' + instruction);
+    if (nodeGroup == null) {
+        return;
+    }
 
     if (event.type == 'mouseover') {
         instructionDiv.style.backgroundColor = instructionHighlightHover;
-        dagNodeHighlight(nodeDiv, true, null);
+        dagNodeHighlight(nodeGroup, true, null);
     } else {
         instructionDiv.style.backgroundColor = instructionHighlightOn;
-        dagNodeHighlight(nodeDiv, false, dagColorMap[instruction]);
+        dagNodeHighlight(nodeGroup, false, dagColorMap[instruction]);
     }
 }
 
@@ -1220,14 +1245,15 @@ function makeTooltip(key, value, index, resultType) {
 }
 
 // Used to "highlight" node when hovering dag nodes
-function dagNodeOnHover(node) {
-    if (node.id == dagMaxHitNodeId) {
-        tooltipDiv.style('opacity', 1).html('max DAG depth hit');
+// @param node The layout node, node.data is the liveDagData entry
+// @param nodeGroup The <g> of the dag node
+function dagNodeOnHover(node, nodeGroup) {
+    if (node.id < 0) {
+        tooltipShow(escapeHtml(node.data.tooltip));
         return;
     }
 
-    var nodeDiv = d3.select(this);
-    dagNodeHighlight(nodeDiv, true, null);
+    dagNodeHighlight(nodeGroup, true, null);
 
     // Need to ignore the first index of the text since its not an operand
     var instruction = instructionMap.get(node.data.id);
@@ -1252,28 +1278,28 @@ function dagNodeOnHover(node) {
         tooltipHtml += makeTooltip(operandNames[i - 1], node.data.text[i], operandWordIndex[i - 1], false);
     }
 
-    tooltipDiv.style('opacity', 1).html(tooltipHtml);
+    tooltipShow(tooltipHtml);
 
     // highlighting of disassembled instructions
     document.getElementById('instruction_' + node.id).style.backgroundColor = instructionHighlightHover;
 }
 
 // Used to update tooltip while hovering over it
-function dagNodeOnMove(node) {
+function dagNodeOnMove(event) {
     // need small gap to prevent hovering over the tool tip itself
     // also the pointer gets in the way
-    tooltipDiv.style('left', (d3.event.clientX + 10) + 'px').style('top', (d3.event.clientY + 10) + 'px');
+    tooltipDiv.style.left = (event.clientX + 10) + 'px';
+    tooltipDiv.style.top = (event.clientY + 10) + 'px';
 }
 
 // Restore node original color
-function dagNodeOffHover(node) {
-    if (node.id == dagMaxHitNodeId) {
+function dagNodeOffHover(node, nodeGroup) {
+    if (node.id < 0) {
         tooltipHide();
         return;
     }
 
-    var nodeDiv = d3.select(this);
-    dagNodeHighlight(nodeDiv, false, dagColorMap[node.id]);
+    dagNodeHighlight(nodeGroup, false, dagColorMap[node.id]);
 
     tooltipHide();
 
@@ -1293,138 +1319,48 @@ function drawDag(dagData) {
     // Grab each time incase window is resized
     const rect = document.getElementById('dagDiv').getBoundingClientRect();
 
-    // Start much larger than the size of the screen and then narrow it down
-    // if the DAG doesn't need it all.
-    // If start small and go the other way, chance d3 will freeze from not being able
-    // to find a way to layout the dag.
-    const dagLayoutWidth = rect.width * 5;
-    const dagLayoutHeight = rect.height * 5;
-
     const newLineSize = 17.0;  // little padding
     const maxLines = 5;
 
+    // Since 99% of instructions are capped at 5 lines, it is easier to make height set to 5 and
+    // anything with more than 5 lines can be "..." and show in a tool tip
     const rectHeight = newLineSize * (maxLines + 0.5);  // max lines and half a line to pad
     const nodeHeight = rectHeight * 1.3;                // 1.0 == no gap, 2.0 == full rect size for gap
     const nodeWidth = 275;                              // shuold be able to fix everything
     const rectWidth = nodeWidth * .85;                  // 1.0 == no gap, 0.5 == full rect size for gap
 
-    // Found that sugiyama is nicer to view, but unlike arquint it can't dynamically adjust height
-    // Since 99% of instructions are capped at 5 lines, it is easier to make height set to 5 and
-    // anything with more than 5 lines can be "..." and show in a tool tip
-    const layout = d3.sugiyama()
-                       .size([dagLayoutWidth, dagLayoutHeight])
-                       .nodeSize([nodeWidth, nodeHeight])
-                       .layering(d3.layeringSimplex())
-                       .decross(d3.decrossTwoLayer().order(d3.twolayerOpt()))
-                       .coord(d3.coordVert());
-
-    var reader = d3.dagStratify();
-    var dag = reader(dagData);
-    layout(dag);
-
-    // If the graph is small, need to size up to be fit the full screen
-    //     otherwise can be way too smal
-    // This also trims down the current large size used to generate DAG
     // 93% gives enough padding to remove the scroll bar
-    var svgWidth = rect.width * .93;
-    var svgHeight = rect.height * .93;
-    dag.each((node, i) => {
-        svgWidth = (node.x > svgWidth) ? node.x : svgWidth;
-        svgHeight = (node.y > svgHeight) ? node.y : svgHeight;
+    const minWidth = rect.width * .93;
+    const minHeight = rect.height * .93;
+
+    const layout = layoutDag(dagData, {
+        'nodeWidth': nodeWidth,
+        'nodeHeight': nodeHeight,
+        // A layer wider than this is wrapped into rows that fit the width of the dag area
+        'wrapThreshold': 8,
+        'nodesPerRow': Math.max(3, Math.floor(minWidth / nodeWidth)),
     });
-
-    // Generate svg
-    const dagSvg = d3.select('#dagSvg');
-
-    // clear previous SVG
-    dagSvg.selectAll('*').remove();
-
-    // SVG is offet by radius other the middle of node is cut in half at boundary
-    dagSvg.attr('width', svgWidth)
-        .attr('height', svgHeight)
-        .attr('viewBox', `${- nodeWidth / 2} ${- nodeHeight / 2} ${svgWidth + nodeWidth} ${svgHeight + nodeHeight}`);
-    const defs = dagSvg.append('defs');  // For gradients
 
     // Generate unique color for each node
-    const steps = dag.size();
-    const interp = d3.interpolateRainbow;
-    dag.each((node, i) => {
-        dagColorMap[node.id] = interp(i / steps);
+    dagColorMap = {};
+    layout.nodes.forEach((node, i) => {
+        dagColorMap[node.id] = rainbowColor(i / layout.nodes.length);
     });
 
-    // How to draw edges
-    const line = d3.line().curve(d3.curveCatmullRom).x(data => data.x).y(data => data.y);
-
-    // Plot edges
-    dagSvg.append('g')
-        .selectAll('path')
-        .data(dag.links())
-        .enter()
-        .append('path')
-        .attr('d', ({data}) => line(data.points))
-        .attr('fill', 'none')
-        .attr('stroke-width', 3)
-        .attr('stroke', ({source, target}) => {
-            const gradId = `${source.id}-${target.id}`;
-            const grad = defs.append('linearGradient')
-                             .attr('id', gradId)
-                             .attr('gradientUnits', 'userSpaceOnUse')
-                             .attr('x1', source.x)
-                             .attr('x2', target.x)
-                             .attr('y1', source.y)
-                             .attr('y2', target.y);
-            grad.append('stop').attr('offset', '0%').attr('stop-color', dagColorMap[source.id]);
-            grad.append('stop').attr('offset', '100%').attr('stop-color', dagColorMap[target.id]);
-            return `url(#${gradId})`;
-        });
-
-    // Select nodes
-    const nodes = dagSvg.append('g')
-                      .selectAll('g')
-                      .data(dag.descendants())
-                      .enter()
-                      .append('g')
-                      .attr('transform', ({x, y}) => `translate(${x}, ${y})`)
-                      .attr('id', node => 'node' + node.id)
-                      .on('click', dagNodeOnClick)
-                      .on('mousemove', dagNodeOnMove)
-                      .on('mouseover', dagNodeOnHover)
-                      .on('mouseout', dagNodeOffHover);
-
-    nodes.append('rect')
-        .attr('width', rectWidth)
-        .attr('height', rectHeight)
-        .attr('x', -(rectWidth / 2))
-        .attr('y', -(rectHeight / 2))
-        .attr('fill', node => dagColorMap[node.id])
-        .attr('stroke', 'black');
-
-    // Add text to nodes
-    nodes.append('text')
-        .attr('font-weight', 'bold')
-        .attr('text-anchor', 'middle')
-        .attr('y', -(rectHeight / 2))  // puts text aligned with top of rect
-        .attr('fill', node => invertedTextColor(dagColorMap[node.id]))
-        .selectAll('tspan')
-        .data(function(data) {
-            // Grab extra line to know if there is a N+1 line
-            return data.data.text.slice(0, maxLines + 1);
-        })
-        .enter()
-        .append('tspan')
-        .text(function(data, i, array) {
-            if (i >= maxLines) {
-                // empty tspan
-                return '';
-            } else if ((i == maxLines - 1) && (array.length > maxLines)) {
-                // If there are more than max lines, mark the last line (zero indexed)
-                return '...';
-            } else {
-                return data;
-            }
-        })
-        .attr('x', '0')
-        .attr('dy', function() {
-            return newLineSize;
-        });
+    drawDagSvg(document.getElementById('dagSvg'), layout, {
+        'nodeWidth': nodeWidth,
+        'nodeHeight': nodeHeight,
+        'rectWidth': rectWidth,
+        'rectHeight': rectHeight,
+        'lineHeight': newLineSize,
+        'maxLines': maxLines,
+        'minWidth': minWidth,
+        'minHeight': minHeight,
+        'color': node => dagColorMap[node.id],
+        'textColor': node => invertedTextColor(dagColorMap[node.id]),
+        'onClick': dagNodeOnClick,
+        'onEnter': dagNodeOnHover,
+        'onLeave': dagNodeOffHover,
+        'onMove': dagNodeOnMove,
+    });
 }
