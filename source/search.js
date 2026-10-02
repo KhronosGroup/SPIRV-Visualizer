@@ -53,6 +53,8 @@ function searchTextChanged() {
 
 function getSearchTexts() {
     if (searchTexts == undefined) {
+        // Sections away from the screen are not built until needed (see sections.js), the search needs all of them
+        materializeAllSections();
         // Instruction divs are in instruction order in the document
         const instructionDivs = displayDiv.getElementsByClassName('instruction');
         searchTexts = new Array(instructionDivs.length);
@@ -100,7 +102,7 @@ function showSearchCurrent() {
         return;
     }
     const index = searchMatches[searchCurrent];
-    document.getElementById('instruction_' + index).classList.add('searchCurrent');
+    getInstructionDiv(index).classList.add('searchCurrent');
     scrollToInstruction(index);
 }
 
@@ -145,7 +147,7 @@ function runSearch() {
     }
 
     for (const index of searchMatches) {
-        const instructionDiv = document.getElementById('instruction_' + index);
+        const instructionDiv = getInstructionDiv(index);
         instructionDiv.classList.add('searchMatch');
         searchMatchDivs.push(instructionDiv);
     }

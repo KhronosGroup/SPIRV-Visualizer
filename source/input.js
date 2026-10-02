@@ -275,6 +275,9 @@ document.getElementById('copyToClipboard').addEventListener('click', function() 
         updateIdText(false, false);
     }
 
+    // Sections away from the screen are not built until needed (see sections.js), the copy needs all of them
+    materializeAllSections();
+
     var clipboard = '';
     let instruction_divs = document.getElementsByClassName("instruction");
     for (let i = 0; i < instruction_divs.length; i++) {

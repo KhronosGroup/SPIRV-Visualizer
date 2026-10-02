@@ -44,37 +44,66 @@ function addCollapsibleWrapper(newDiv, appendDiv, type, attributeName, displayNa
     appendDiv.appendChild(wrapDiv);
 }
 
-// Large modules have hundreds of thousands of DOM nodes, which can take many seconds of style and layout to show.
-// Sections (blocks and the pre-function sections) away from the visible part of displayDiv are hidden so the browser
-// skips their style, layout and paint. They keep taking up space from the height estimate below, so the scroll bar is
-// about right, and an IntersectionObserver shows them again as they get close to being scrolled to.
+// Large modules have hundreds of thousands of instructions, millions of DOM nodes. Building them all takes seconds and
+// the browser then spends more seconds on style and layout. So the HTML of each section (a block or a pre-function
+// section) is only turned into DOM when the section comes close to the visible part of displayDiv: sections start as an
+// empty div with a height estimate (so the scroll bar is about right) and content-visibility: hidden, an
+// IntersectionObserver builds and shows them as they get near, and hides them again when they are far away.
 //
-// Sections start hidden with content-visibility: hidden, then are switched to hidden="until-found" in the background.
-// until-found lets Ctrl+F find text in a hidden section (the browser removes the attribute itself on a match), but
-// Chrome lays out everything that is until-found on the first frame, which is as slow as not hiding anything.
-// Switching after the first frame is cheap. (content-visibility: auto has the same first frame cost.)
+// Anything that needs the DOM of an instruction goes through getInstructionDiv(), which builds its section first, and
+// anything that walks every instruction calls materializeAllSections() first.
+// The browser's Ctrl+F only sees sections that have been built, the search bar (search.js) covers the whole module.
 var sectionObserver = undefined;
 // How far outside the visible part of displayDiv sections are still shown, so normal scrolling doesn't show empty space
 const sectionObserverMargin = '2000px';
 // Sections close to the visible part of displayDiv
 var nearSections = new Set();
-// Sections already switched to hidden="until-found"
-var searchableSections = new Set();
-// Stops the background switch to until-found from a previous module
-var sectionGeneration = 0;
+// HTML of the instructions of the sections that are not built yet: section div -> html string
+var pendingSectionHtml = new Map();
+// The section div (block, pre-function section or function div) of every instruction index
+var instructionSections = [];
+// Instructions in each section div (pre-function section, function or block)
+var sectionInstructionCounts = new Map();
+// Set by main.js, applies the OpNames / Insert Constants settings to a freshly built section
+var onSectionMaterialized = undefined;
 
-function hideSection(section) {
-    if (searchableSections.has(section)) {
-        section.style.contentVisibility = '';
-        section.setAttribute('hidden', 'until-found');
-    } else {
-        section.style.contentVisibility = 'hidden';
+// Builds the DOM of a section if it only exists as HTML so far
+function materializeSection(section) {
+    const html = pendingSectionHtml.get(section);
+    if (html != undefined) {
+        pendingSectionHtml.delete(section);
+        section.insertAdjacentHTML('beforeend', html);
+        if (onSectionMaterialized) {
+            onSectionMaterialized(section);
+        }
     }
 }
 
+// For anything that has to see every instruction (Copy To Clipboard, the search text). Costs about as much as the
+// page used to cost to load, once
+function materializeAllSections() {
+    for (const section of Array.from(pendingSectionHtml.keys())) {
+        materializeSection(section);
+    }
+}
+
+// The div of an instruction, building its section first if needed. undefined for an unknown index
+function getInstructionDiv(index) {
+    let instructionDiv = document.getElementById('instruction_' + index);
+    if (instructionDiv == null && instructionSections[index] != undefined) {
+        materializeSection(instructionSections[index]);
+        instructionDiv = document.getElementById('instruction_' + index);
+    }
+    return instructionDiv || undefined;
+}
+
+function hideSection(section) {
+    section.style.contentVisibility = 'hidden';
+}
+
 function showSection(section) {
+    materializeSection(section);
     section.style.contentVisibility = '';
-    section.removeAttribute('hidden');
 }
 
 // Call before clearing displayDiv for a new module
@@ -83,17 +112,18 @@ function resetSections() {
         sectionObserver.disconnect();
         sectionObserver = undefined;
     }
-    sectionGeneration++;
+    nearSections = new Set();
+    pendingSectionHtml = new Map();
+    instructionSections = [];
+    sectionInstructionCounts = new Map();
 }
 
+// Call at the end of parsing with every section div, in document order
 function hideOffscreenSections(sections) {
-    const generation = ++sectionGeneration;
-    // Without hidden="until-found" Ctrl+F wouldn't find text in hidden sections, so keep showing everything there
-    if (!('onbeforematch' in document.body) || !window.IntersectionObserver) {
+    if (!window.IntersectionObserver) {
+        materializeAllSections();
         return;
     }
-    nearSections = new Set();
-    searchableSections = new Set();
 
     sectionObserver = new IntersectionObserver(function(entries) {
         for (const entry of entries) {
@@ -112,41 +142,18 @@ function hideOffscreenSections(sections) {
     let shownInstructions = 0;
     for (let i = 0; i < sections.length; i++) {
         const section = sections[i];
-        const instructions = section.childElementCount;
+        const instructions = sectionInstructionCounts.get(section) || 0;
         // Each instruction is about 1.3em tall. "auto" lets the browser use the real height once a section was shown
         section.style.containIntrinsicHeight = `auto ${(instructions * 1.3 + 1).toFixed(1)}em`;
         if (shownInstructions < firstShownInstructions) {
             shownInstructions += instructions;
             nearSections.add(section);
+            showSection(section);
         } else {
             hideSection(section);
         }
         sectionObserver.observe(section);
     }
-
-    // Switch to until-found a batch at a time while the browser is idle (each batch is a few ms)
-    const requestIdle = window.requestIdleCallback || function(callback) {
-        return setTimeout(callback, 1);
-    };
-    const batchSize = 100;
-    let next = 0;
-    function makeSearchable() {
-        if (generation != sectionGeneration) {
-            return;  // a new module was loaded
-        }
-        const end = Math.min(next + batchSize, sections.length);
-        for (; next < end; next++) {
-            const section = sections[next];
-            searchableSections.add(section);
-            if (!nearSections.has(section)) {
-                hideSection(section);
-            }
-        }
-        if (next < sections.length) {
-            requestIdle(makeSearchable);
-        }
-    }
-    requestIdle(makeSearchable);
 }
 
 // The elements with a class in the parts of displayDiv that are shown or about to be, for changes that only matter
@@ -184,6 +191,7 @@ function elementsNearView(className) {
 }
 
 // Needs to be called before scrolling to an instruction that might be in a hidden section
+// (getInstructionDiv() has built it, this makes it visible without waiting for the observer)
 function showInstructionSection(instructionDiv) {
     const section = instructionDiv.closest('.label, .preFunction');
     if (section) {
@@ -193,8 +201,8 @@ function showInstructionSection(instructionDiv) {
 
 // Scrolls the disassembly to an instruction, uncollapsing and showing its section first
 function scrollToInstruction(index) {
-    const instructionDiv = document.getElementById('instruction_' + index);
-    if (instructionDiv == null) {
+    const instructionDiv = getInstructionDiv(index);
+    if (instructionDiv == undefined) {
         return;
     }
     uncollapseInstruction(instructionDiv);

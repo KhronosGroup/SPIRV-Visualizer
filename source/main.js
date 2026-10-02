@@ -120,8 +120,28 @@ function parseBinaryStream(binary) {
     // displayDiv -> function -> label -> instructions
     var currentInstructionDiv = preFunctionDiv;
     var currentFunctionDiv = undefined;
-    // Instructions in each section div (pre-function section, function or block), shown on its bar
-    var sectionCounts = new Map();
+
+    // The HTML of the instructions of the current section, handed over when the section ends. Blocks and pre-function
+    // sections are only built when they come on screen (see sections.js), the few instructions directly in a function
+    // div (OpFunction, parameters, OpFunctionEnd) are inserted right away since the function div is never hidden.
+    // Building one element per instruction was most of the load time on large modules
+    var pendingInstructionHtml = [];
+    function flushInstructions() {
+        if (pendingInstructionHtml.length > 0) {
+            const html = pendingInstructionHtml.join('');
+            pendingInstructionHtml = [];
+            if (currentInstructionDiv == currentFunctionDiv) {
+                // insertAdjacentHTML keeps the children already there (the function div holds its block wrappers too)
+                currentInstructionDiv.insertAdjacentHTML('beforeend', html);
+            } else {
+                pendingSectionHtml.set(currentInstructionDiv, (pendingSectionHtml.get(currentInstructionDiv) || '') + html);
+            }
+        }
+    }
+    function setInstructionDiv(div) {
+        flushInstructions();
+        currentInstructionDiv = div;
+    }
 
     // How much each basic block will indent by
     var indentStack = [];
@@ -177,19 +197,22 @@ function parseBinaryStream(binary) {
         // Find other preFunction opcodes to create more labels
         if (insertedDebug == false && instructionInfo.class == 'Debug') {
             insertedDebug = true;
+            flushInstructions();  // before the new section is appended, so the order is kept
             let commentDiv = document.createElement('div');
             addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'debug', 'Debug Information');
-            currentInstructionDiv = commentDiv;
+            setInstructionDiv(commentDiv);
         } else if (insertedAnnotation == false && instructionInfo.class == 'Annotation') {
             insertedAnnotation = true;
+            flushInstructions();  // before the new section is appended, so the order is kept
             let commentDiv = document.createElement('div');
             addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'annotations', 'Annotations');
-            currentInstructionDiv = commentDiv;
+            setInstructionDiv(commentDiv);
         } else if (insertedType == false && instructionInfo.class == 'Type-Declaration') {
             insertedType = true;
+            flushInstructions();  // before the new section is appended, so the order is kept
             let commentDiv = document.createElement('div');
             addCollapsibleWrapper(commentDiv, displayDiv, 'preFunction', 'types', 'Types, variables and constants');
-            currentInstructionDiv = commentDiv;
+            setInstructionDiv(commentDiv);
         }
 
         // Handles all aspects related to CFG
@@ -214,6 +237,7 @@ function parseBinaryStream(binary) {
                 case spirv.Enums.Op.OpFunction:
                     currentFunction.start = instructionCount;
 
+                    flushInstructions();  // before the new section is appended, so the order is kept
                     var newDiv = document.createElement('div');
                     // OpName comes before the functions in the module, so the name is known here
                     var functionName = 'Function ' + instructionCount;
@@ -223,18 +247,20 @@ function parseBinaryStream(binary) {
                     addCollapsibleWrapper(newDiv, displayDiv, 'function', instructionCount, functionName);
 
                     currentFunctionDiv = newDiv;
-                    currentInstructionDiv = newDiv;
+                    setInstructionDiv(newDiv);
                     break;
                 case spirv.Enums.Op.OpFunctionEnd:
                     currentFunction.end = instructionCount;
 
                     // Label has ended and need to add last instruction
-                    currentInstructionDiv = currentFunctionDiv
+                    setInstructionDiv(currentFunctionDiv);
                     break;
                 case spirv.Enums.Op.OpLabel:
                     currentBlock.start = instructionCount;
                     currentBlock.function = currentFunction.start;
 
+                    // The function's own instructions (OpFunction, parameters) go before this block's wrapper
+                    flushInstructions();
                     var newDiv = document.createElement('div');
 
                     assert(currentFunctionDiv, 'OpLabel not in a function block');
@@ -245,7 +271,7 @@ function parseBinaryStream(binary) {
                     newDiv.style.marginLeft = indentSize + 'px';
                     newDiv.parentNode.previousElementSibling.style.marginLeft = indentSize + 'px';
 
-                    currentInstructionDiv = newDiv;
+                    setInstructionDiv(newDiv);
                     break;
                 case spirv.Enums.Op.OpBranch:
                 case spirv.Enums.Op.OpBranchConditional:
@@ -706,17 +732,13 @@ function parseBinaryStream(binary) {
                 }
             }
 
-            // Create instruction div
-            var newDiv = document.createElement('div');
-            newDiv.innerHTML = instructionString
-            // Setting these directly is faster than setAttribute()
-            newDiv.id = `instruction_${instructionCount}`;
-            newDiv.className = 'instruction';
-            currentInstructionDiv.appendChild(newDiv);
-            sectionCounts.set(currentInstructionDiv, (sectionCounts.get(currentInstructionDiv) || 0) + 1);
+            // The instruction div, inserted with the rest of its section by flushInstructions()
+            pendingInstructionHtml.push(`<div id="instruction_${instructionCount}" class="instruction">${instructionString}</div>`);
+            instructionSections.push(currentInstructionDiv);
+            sectionInstructionCounts.set(currentInstructionDiv, (sectionInstructionCounts.get(currentInstructionDiv) || 0) + 1);
             if (currentFunctionDiv != undefined && currentInstructionDiv != currentFunctionDiv) {
                 // A block's instructions count for the function too
-                sectionCounts.set(currentFunctionDiv, (sectionCounts.get(currentFunctionDiv) || 0) + 1);
+                sectionInstructionCounts.set(currentFunctionDiv, (sectionInstructionCounts.get(currentFunctionDiv) || 0) + 1);
             }
         }
 
@@ -838,6 +860,8 @@ function parseBinaryStream(binary) {
     // Post processing
     // Anything to be done after both passes are made
     {
+        flushInstructions();
+
         // Add the CFG tags to each OpLabel
         // This used to round trip through class names on the block divs and loop over a live
         // getElementsByClassName() collection, but prepend() invalidates that collection so every
@@ -858,7 +882,7 @@ function parseBinaryStream(binary) {
         for (let i = 0; i < sectionLabels.length; i++) {
             const label = sectionLabels[i];
             // label -> collapsible-content wrapper -> section div
-            const count = sectionCounts.get(label.nextElementSibling.firstElementChild) || 0;
+            const count = sectionInstructionCounts.get(label.nextElementSibling.firstElementChild) || 0;
             const countSpan = document.createElement('span');
             countSpan.className = 'sectionCount';
             countSpan.textContent = count + ((count == 1) ? ' instruction' : ' instructions');
@@ -951,7 +975,7 @@ function fillDagData(instruction, parents) {
     }
     liveDagIds.add(instruction);
 
-    var instructionDiv = document.getElementById('instruction_' + instruction);
+    var instructionDiv = getInstructionDiv(instruction);
     // set background color for each instruction in liveDagData
     // #c9cdff is "dark lavender"
     instructionDiv.style.backgroundColor = instructionHighlightOn;
@@ -1103,11 +1127,14 @@ function displayDebugString(instruction) {
 
 // Sets the text of every id element from the settings, in one pass over the DOM.
 // (Doing it one id at a time with getElementsByClassName was O(ids x DOM size), minutes on a large module)
+// Only the sections that are built are touched, a section built later gets the settings applied then (see
+// onSectionMaterialized below), so this gets cheaper the less of the module has been looked at.
 // @param useNames Show the OpName of an id instead of %N
 // @param useConstants Show the value of a constant instead of %N, except for the result of the constant itself.
 //        If an id is modified by both, the constant gets priority
-function updateIdText(useNames, useConstants) {
-    const idElements = displayDiv.querySelectorAll('.id');
+// @param root Only update this section, default is the whole display
+function updateIdText(useNames, useConstants, root) {
+    const idElements = (root || displayDiv).querySelectorAll('.id');
     for (let i = 0; i < idElements.length; i++) {
         const element = idElements[i];
         // Each element has a class of "id42" with the id value
@@ -1136,10 +1163,21 @@ function updateIdText(useNames, useConstants) {
     }
 
     if (useConstants) {
-        updateNonSemanticConstants();
+        updateNonSemanticConstants(root);
     }
-    searchTextChanged();
+    if (root == undefined) {
+        searchTextChanged();
+    }
 }
+
+// A section that was just built shows the plain %N ids, apply the settings to it
+onSectionMaterialized = function(section) {
+    const useNames = document.getElementById('opNames').checked;
+    const useConstants = document.getElementById('insertConstants').checked;
+    if (useNames || useConstants) {
+        updateIdText(useNames, useConstants, section);
+    }
+};
 
 // @param toggle True to use, False to not
 function useOpNames(toggle) {
@@ -1182,9 +1220,16 @@ function updateNonSemantic(setId, operandDiv, enumerantName) {
 }
 
 // After constants are inserted, NonSemantic instructions can show the ValueEnum/BitEnum name for the constant value
-function updateNonSemanticConstants() {
+// @param root Only the instructions in this section, default is every built instruction
+function updateNonSemanticConstants(root) {
     nonSemanticInstructions.forEach(function(setId, instructionId, map) {
+        if (root != undefined && instructionSections[instructionId] != root) {
+            return;
+        }
         let instructionDiv = document.getElementById('instruction_' + instructionId);
+        if (instructionDiv == null) {
+            return;  // section not built yet, it gets this applied when it is
+        }
         let operands = instructionDiv.getElementsByClassName('operand');
         let extOpname = collapsedText(operands[1]);
 
@@ -1343,7 +1388,7 @@ function dagNodeOnHover(node, nodeGroup) {
     tooltipShow(tooltipHtml);
 
     // highlighting of disassembled instructions
-    document.getElementById('instruction_' + node.id).style.backgroundColor = instructionHighlightHover;
+    getInstructionDiv(node.id).style.backgroundColor = instructionHighlightHover;
 }
 
 // Used to update tooltip while hovering over it
@@ -1366,7 +1411,7 @@ function dagNodeOffHover(node, nodeGroup) {
     tooltipHide();
 
     // un-highlighting of disassembled instructions
-    document.getElementById('instruction_' + node.id).style.backgroundColor = instructionHighlightOn;
+    getInstructionDiv(node.id).style.backgroundColor = instructionHighlightOn;
 }
 
 function drawDag(dagData) {
