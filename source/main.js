@@ -1463,6 +1463,8 @@ function drawDag(dagData) {
         'maxLines': maxLines,
         'minWidth': minWidth,
         'minHeight': minHeight,
+        // Small graphs are scaled up to fill the space, but never beyond the scale a chain of 5 nodes gets
+        'maxScale': minHeight / (5 * nodeHeight),
         'color': node => dagColorMap[node.id],
         'textColor': node => invertedTextColor(dagColorMap[node.id]),
         'onClick': dagNodeOnClick,

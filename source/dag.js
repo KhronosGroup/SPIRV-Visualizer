@@ -183,7 +183,7 @@ function dagEdgePath(points) {
 }
 
 // Draws a layout from layoutDag() into an <svg>, replacing what was there
-// @param options {nodeWidth, nodeHeight, rectWidth, rectHeight, lineHeight, maxLines, minWidth, minHeight,
+// @param options {nodeWidth, nodeHeight, rectWidth, rectHeight, lineHeight, maxLines, minWidth, minHeight, maxScale,
 //                 color(node), textColor(node), onClick(node, g), onEnter(node, g), onLeave(node, g), onMove(event)}
 //        color/textColor return CSS colors for the node, the on* callbacks get the layout node and its <g>
 function drawDagSvg(svg, layout, options) {
@@ -198,15 +198,25 @@ function drawDagSvg(svg, layout, options) {
 
     svg.replaceChildren();
 
-    // If the graph is small, size up to fill the available space, otherwise it can be way too small.
-    // The viewBox is offset by half a node so the nodes at the edges aren't cut in half
-    const width = Math.max(options.minWidth, layout.width);
-    const height = Math.max(options.minHeight, layout.height);
-    svg.setAttribute('width', width);
-    svg.setAttribute('height', height);
-    svg.setAttribute(
-        'viewBox',
-        `${- options.nodeWidth / 2} ${- options.nodeHeight / 2} ${width + options.nodeWidth} ${height + options.nodeHeight}`);
+    // The graph is drawn with half a node of padding on each side so the nodes at the edges aren't cut in half.
+    // A small graph is scaled up (keeping its aspect ratio) so a few nodes aren't tiny, but at most by options.maxScale
+    // so it doesn't get comically large either, and centered in the available space. Once the graph is as big as the
+    // space at its normal size it is drawn at that size and scrolls.
+    const graphWidth = layout.width + options.nodeWidth;
+    const graphHeight = layout.height + options.nodeHeight;
+    const scale = Math.min(options.minWidth / graphWidth, options.minHeight / graphHeight, options.maxScale);
+    if (scale > 1) {
+        // The viewBox is the available space in graph units, with the graph in the middle of it
+        const viewWidth = options.minWidth / scale;
+        const viewHeight = options.minHeight / scale;
+        svg.setAttribute('width', options.minWidth);
+        svg.setAttribute('height', options.minHeight);
+        svg.setAttribute('viewBox', `${- options.nodeWidth / 2 - (viewWidth - graphWidth) / 2} ${- options.nodeHeight / 2 - (viewHeight - graphHeight) / 2} ${viewWidth} ${viewHeight}`);
+    } else {
+        svg.setAttribute('width', graphWidth);
+        svg.setAttribute('height', graphHeight);
+        svg.setAttribute('viewBox', `${- options.nodeWidth / 2} ${- options.nodeHeight / 2} ${graphWidth} ${graphHeight}`);
+    }
 
     // Edges, each a gradient from the source node color to the target node color
     const defs = createElement('defs', {});
