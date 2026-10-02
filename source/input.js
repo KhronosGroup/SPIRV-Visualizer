@@ -133,7 +133,7 @@ function debugStringOnClick(event) {
 }
 
 // A single delegated listener instead of one per element
-// Large modules have so many elements that binding each one with jQuery overflows the call stack
+// Large modules have so many elements that binding each one (as was done with jQuery) overflowed the call stack
 document.getElementById('disassembleDisplayDiv').addEventListener('click', function(event) {
     const classList = event.target.classList;
     if (classList.contains('id')) {
@@ -208,37 +208,42 @@ function toggleDisassemblyInput(turnOn) {
     }
 }
 
-// Sends all checkboxes out to handlers
-$(document).ready(function() {
+// Runs once every script is loaded, input.js is loaded before main.js which defines displayDiv and inputDiv
+document.addEventListener('DOMContentLoaded', function() {
     // On start up
     toggleDisassemblyInput(true);
 
-    $('#disassembleInputDiv').on('keypress', function(event) {
+    inputDiv.addEventListener('keypress', function(event) {
         // Prevents shift+enter from starting event
-        if (event.which === 13 && !event.shiftKey) {
+        if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             const spirvBinary = assemble(inputDiv.value);
             fileSelected(spirvBinary, 'disassembled text')
         }
     });
 
-    $('input[type="checkbox"]').click(function() {
-        let box = $(this)[0].name;
-        let checked = $(this).prop('checked');
-
-        // dispatches each type of option to be handled
-        if (box == 'opNames') {
-            useOpNames(checked);
-        } else if (box == 'insertConstants') {
-            insertConstants(checked);
-        } else if (box == 'largerText') {
-            // Doesn't effect the settings text size
-            document.getElementById('moduleData').style.fontSize = (checked) ? 'medium' : 'small';
-        }
-    });
+    // Sends all the settings checkboxes out to handlers
+    for (const checkbox of document.querySelectorAll('#settings input[type="checkbox"]')) {
+        checkbox.addEventListener('click', settingsCheckboxClick);
+    }
 });
 
-$('#collapseAll').on('click', function() {
+function settingsCheckboxClick(event) {
+    let box = event.target.name;
+    let checked = event.target.checked;
+
+    // dispatches each type of option to be handled
+    if (box == 'opNames') {
+        useOpNames(checked);
+    } else if (box == 'insertConstants') {
+        insertConstants(checked);
+    } else if (box == 'largerText') {
+        // Doesn't effect the settings text size
+        document.getElementById('moduleData').style.fontSize = (checked) ? 'medium' : 'small';
+    }
+}
+
+document.getElementById('collapseAll').addEventListener('click', function() {
     let toggle_elements = document.getElementsByClassName('toggle');
     for (let i = 0; i < toggle_elements.length; i++) {
         if (toggle_elements[i].checked) {
@@ -247,7 +252,7 @@ $('#collapseAll').on('click', function() {
     }
 });
 
-$('#expandAll').on('click', function() {
+document.getElementById('expandAll').addEventListener('click', function() {
     let toggle_elements = document.getElementsByClassName('toggle');
     for (let i = 0; i < toggle_elements.length; i++) {
         if (!toggle_elements[i].checked) {
@@ -256,13 +261,13 @@ $('#expandAll').on('click', function() {
     }
 });
 
-$('#clearAll').on('click', function() {
+document.getElementById('clearAll').addEventListener('click', function() {
     toggleDisassemblyInput(true);
     clearDagDiv();
     resetSearch();
 });
 
-$('#copyToClipboard').on('click', function() {
+document.getElementById('copyToClipboard').addEventListener('click', function() {
     // These modifications make it hard to grab spirv that other assemblers will understand
     let opNamesChecked = document.getElementById('opNames').checked;
     let insertConstantsChecked = document.getElementById('insertConstants').checked;

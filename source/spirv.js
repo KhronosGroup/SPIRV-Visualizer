@@ -195,9 +195,23 @@ spirv.getNonSemanticType = function(setId) {
     }
 }
 
+// Fetches and parses a JSON file, calls onLoad(json) or onError(error)
+function fetchJson(url, onLoad, onError) {
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(url + ': ' + response.status + ' ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(onLoad, onError || function(error) {
+            assert(false, 'Failed to load ' + url + ' (' + error + ')');
+        });
+}
+
 function loadSpirvJson() {
     // C Header equivalent
-    $.getJSON(spirv.GrammarPath + 'spirv.json', function(json) {
+    fetchJson(spirv.GrammarPath + 'spirv.json', function(json) {
         spirv.Meta = json.spv.meta;
         for (let i = 0; i < json.spv.enum.length; i++) {
             spirv.Enums[json.spv.enum[i].Name] = json.spv.enum[i].Values;
@@ -210,7 +224,7 @@ function loadSpirvJson() {
 }
 
 function loadCoreGrammar() {
-    $.getJSON(spirv.GrammarPath + 'spirv.core.grammar.json', function(json) {
+    fetchJson(spirv.GrammarPath + 'spirv.core.grammar.json', function(json) {
         spirv.Version = json.major_version + "." + json.minor_version + "." + json.revision;
         // put in map as need faster way to lookup then search large array each time
         for (let i = 0; i < json.instructions.length; i++) {
@@ -244,7 +258,7 @@ function loadCoreGrammar() {
 // Extended Instruction sets
 function loadExtInstImport() {
     for (const set of ExtInstSets) {
-        $.getJSON(spirv.GrammarPath + set.file, function(json) {
+        fetchJson(spirv.GrammarPath + set.file, function(json) {
             const instructions = new Map();
             for (let i = 0; i < json.instructions.length; i++) {
                 instructions.set(json.instructions[i].opcode, json.instructions[i]);
@@ -259,7 +273,7 @@ function loadExtInstImport() {
                 spirv.ExtOperands.set(set.type, operands);
             }
             spirvJsonLoaded();
-        }).fail(function() {
+        }, function() {
             // Don't block the whole page if a SPIRV-Headers version is missing a grammar file
             console.log('Warning: failed to load ' + set.file + ', instructions from that set will be shown as raw numbers');
             spirvJsonLoaded();

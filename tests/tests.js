@@ -103,7 +103,7 @@ function runTestSuite() {
 
     // Load each file from the tests.json folder
     // This should be running on localhost as there might be a lot of tests
-    $.getJSON("tests/tests.json", function(json) {
+    fetchJson("tests/tests.json", function(json) {
         fileList = json.files;
         console.log("Total files: " + fileList.length);
         // Initial start of testing

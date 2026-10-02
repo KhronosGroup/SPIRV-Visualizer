@@ -919,8 +919,7 @@ function clearDagData() {
     document.getElementById('statsDiv').innerHTML = '';
 
     for (let i = 0; i < liveDagData.length; i++) {
-        let instructionFn = $('#instruction_' + liveDagData[i].id);
-        let instructionDiv = instructionFn[0];
+        let instructionDiv = document.getElementById('instruction_' + liveDagData[i].id);
 
         // on switching files these dives are already gone
         if (instructionDiv) {
@@ -928,8 +927,8 @@ function clearDagData() {
             instructionDiv.style.backgroundColor = instructionHighlightOff;
 
             // remove event listeners
-            instructionFn.off('mouseover', instructionHover);
-            instructionFn.off('mouseout', instructionHover);
+            instructionDiv.removeEventListener('mouseover', instructionHover);
+            instructionDiv.removeEventListener('mouseout', instructionHover);
         }
     }
     liveDagData = [];
@@ -952,15 +951,14 @@ function fillDagData(instruction, parents) {
     }
     liveDagIds.add(instruction);
 
-    var instructionFn = $('#instruction_' + instruction);
-    var instructionDiv = instructionFn[0];
+    var instructionDiv = document.getElementById('instruction_' + instruction);
     // set background color for each instruction in liveDagData
     // #c9cdff is "dark lavender"
     instructionDiv.style.backgroundColor = instructionHighlightOn;
 
     // Add event listener to map to the graph
-    instructionFn.on('mouseover', instructionHover);
-    instructionFn.on('mouseout', instructionHover);
+    instructionDiv.addEventListener('mouseover', instructionHover);
+    instructionDiv.addEventListener('mouseout', instructionHover);
 
     var operation = collapsedText(instructionDiv);
     const opcode = collapsedText(instructionDiv.getElementsByClassName('operation')[0]);
