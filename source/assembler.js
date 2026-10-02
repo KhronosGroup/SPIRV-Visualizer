@@ -42,9 +42,15 @@ function assemble(spirvText, version) {
 
     let lastOpExtInst = 0;
 
+    // Disassembly from spirv-dis starts with "; Version: 1.6", use it if no version was passed in
+    if (version == undefined) {
+        const versionComment = spirvText.match(/^;\s*Version:\s*(\d+)\.(\d+)/m);
+        version = versionComment ? ((parseInt(versionComment[1]) << 16) | (parseInt(versionComment[2]) << 8)) : SPV_ENV_UNIVERSAL_1_0;
+    }
+
     // SPIR-V Header
     let words = [
-        spirv.Meta.MagicNumber, (version == undefined) ? SPV_ENV_UNIVERSAL_1_0 : version,
+        spirv.Meta.MagicNumber, version,
         0x0,  // generator
         0x0,  // ID Bounds - update later
         0x0,  // reserved
@@ -142,7 +148,7 @@ function assemble(spirvText, version) {
         if (opname == 'OpExtInstImport') {
             let importName = literalString.substring(0, literalString.length - 1);  // remove null terminator
             spirv.setResultToExtImportMap(importName, idMap.get(line[0]));
-        } else if (opname == 'OpExtInst') {
+        } else if (opname == 'OpExtInst' || opname == 'OpExtInstWithForwardRefsKHR') {
             lastOpExtInst = idMap.get(line[4]);
         } else if (opname == 'OpTypeInt') {
             bitWidthIntMap.set(idMap.get(line[0]), line[3]);

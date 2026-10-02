@@ -43,12 +43,17 @@ function fileSelected(data, filename) {
 const fileSelector = document.getElementById('fileSelector');
 const fileSelectorTop = document.getElementById('fileSelectorTop');
 function fileSelect(event) {
+    const file = event.target.files[0];
+    if (file == undefined) {
+        return;  // dialog was cancelled
+    }
     const reader = new FileReader();
     reader.onload = function() {
-        const filename = (event.target.files) ? event.target.files[0].name : undefined;
-        fileSelected(reader.result, filename);
+        fileSelected(reader.result, file.name);
     };
-    reader.readAsArrayBuffer(event.target.files[0]);
+    reader.readAsArrayBuffer(file);
+    // Clear the selection so picking the same file again (ex. after recompiling it) fires another change event
+    event.target.value = '';
 };
 fileSelector.addEventListener('change', fileSelect, false);
 fileSelectorTop.addEventListener('change', fileSelect, false);

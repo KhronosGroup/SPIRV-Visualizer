@@ -69,6 +69,31 @@ function parseBinaryStream(binary) {
         idConsumers[i] = [];
     }
 
+    // Records that |instruction| uses |id|, with a readable error for a corrupt module
+    function addIdConsumer(id, instruction) {
+        assert(id > 0 && id < maxIdBound, `ID %${id} used by instruction [${instruction}] is outside the ID bound of ${maxIdBound}`);
+        idConsumers[id].push(instruction);
+    }
+
+    // OpSwitch case literals have the width and signedness of the selector type, so a 64-bit selector has 2 word literals
+    function getSwitchLiteralInfo(selectorId) {
+        const selector = instructionMap.get(resultToInstructionMap.get(selectorId));
+        const type = selector ? instructionMap.get(resultToInstructionMap.get(selector.resultType)) : undefined;
+        if (type && type.opcode == spirv.Enums.Op.OpTypeInt) {
+            return {'words': Math.ceil(module[type.moduleOffset + 2] / 32), 'signed': module[type.moduleOffset + 3] == 1};
+        }
+        return {'words': 1, 'signed': false};
+    }
+    // @param offset Index in |module| of the first word of the literal
+    function switchLiteralToString(offset, literalInfo) {
+        // ">> 0" turns the uint32 into an int32
+        if (literalInfo.words == 2) {
+            const high = literalInfo.signed ? (module[offset + 1] >> 0) : module[offset + 1];
+            return ((BigInt(high) << BigInt(32)) + BigInt(module[offset])).toString();
+        }
+        return (literalInfo.signed ? (module[offset] >> 0) : module[offset]).toString();
+    }
+
     var infoDiv = document.createElement('div');
     const version = ((module[1] >> 16) & 0xff).toString() + '.' + ((module[1] >> 8) & 0xff).toString();
     infoDiv.id = 'module-info';
@@ -237,12 +262,14 @@ function parseBinaryStream(binary) {
                     branchDestinations.push(module[i + 2]);
                     branchDestinations.push(module[i + 3]);
                     break;
-                case spirv.Enums.Op.OpSwitch:
+                case spirv.Enums.Op.OpSwitch: {
                     branchDestinations.push(module[i + 2]);
-                    for (let operand = 4; operand < instructionLength; operand += 2) {
+                    const literalWords = getSwitchLiteralInfo(module[i + 1]).words;
+                    for (let operand = 3 + literalWords; operand < instructionLength; operand += 1 + literalWords) {
                         branchDestinations.push(module[i + operand]);
                     }
                     break;
+                }
             }
             if (branchDestinations.length > 0) {
                 branchMap.set(instructionCount, branchDestinations);
@@ -273,7 +300,7 @@ function parseBinaryStream(binary) {
 
             if (hasResultType == true) {
                 instructionString += ' ' + createIdHtmlString(opcodeResultType, 'resultType');
-                idConsumers[opcodeResultType].push(instructionCount);
+                addIdConsumer(opcodeResultType, instructionCount);
                 operandIdList.push(opcodeResultType);
                 operandWordIndexList.push(1);
             }
@@ -383,7 +410,7 @@ function parseBinaryStream(binary) {
                         while (operandOffset < instructionLength) {
                             var nextOperand = module[i + operandOffset]
                             instructionString += ' ' + createIdHtmlString(nextOperand, 'operand');
-                            idConsumers[nextOperand].push(instructionCount);
+                            addIdConsumer(nextOperand, instructionCount);
                             operandIdList.push(nextOperand);
                             operandWordIndexList.push(operandOffset);
                             operandOffset++;
@@ -394,7 +421,7 @@ function parseBinaryStream(binary) {
                     } else {
                         // if optional (quantifier == "?"), print as normal
                         instructionString += ' ' + createIdHtmlString(operand, 'operand');
-                        idConsumers[operand].push(instructionCount);
+                        addIdConsumer(operand, instructionCount);
                         operandIdList.push(operand);
                         operandWordIndexList.push(operandOffset);
                         operandNameList.push(operandName);
@@ -527,7 +554,7 @@ function parseBinaryStream(binary) {
 
                 } else if ((kind == 'IdMemorySemantics') || (kind == 'IdScope')) {
                     instructionString += ' ' + createIdHtmlString(operand, 'operand');
-                    idConsumers[operand].push(instructionCount);
+                    addIdConsumer(operand, instructionCount);
                     operandIdList.push(operand);
                     operandNameList.push(operandName);
                     operandWordIndexList.push(operandOffset);
@@ -536,18 +563,21 @@ function parseBinaryStream(binary) {
                 } else if (
                     (kind == 'PairLiteralIntegerIdRef') || (kind == 'PairIdRefLiteralInteger') || (kind == 'PairIdRefIdRef')) {
                     // All share the same logic of finshing rest of words 2 operands at a time
+                    // (except an OpSwitch literal can be 2 words itself, see getSwitchLiteralInfo)
+                    const switchLiteral = (opcode == spirv.Enums.Op.OpSwitch) ? getSwitchLiteralInfo(module[i + 1]) : undefined;
+                    const firstWords = switchLiteral ? switchLiteral.words : 1;
                     var quantifierIndex = 0;
                     while (operandOffset < instructionLength) {
                         var nextOperand = module[i + operandOffset];
-                        var nextNextOperand = module[i + operandOffset + 1];
+                        var nextNextOperand = module[i + operandOffset + firstWords];
                         if (opcode == spirv.Enums.Op.OpSwitch) {
                             instructionString += ' (Case ';
-                            instructionString += createLiteralHtmlString(nextOperand);
+                            instructionString += createLiteralHtmlString(switchLiteralToString(i + operandOffset, switchLiteral));
                             instructionString += ' : ';
                             instructionString += createIdHtmlString(nextNextOperand, 'operand');
                             instructionString += ') ';
 
-                            idConsumers[nextNextOperand].push(instructionCount);
+                            addIdConsumer(nextNextOperand, instructionCount);
                             operandIdList.push(nextNextOperand);
 
                             operandNameList.push('Case');
@@ -560,7 +590,7 @@ function parseBinaryStream(binary) {
                             instructionString += createLiteralHtmlString(nextNextOperand);
                             instructionString += ') ';
 
-                            idConsumers[nextOperand].push(instructionCount);
+                            addIdConsumer(nextOperand, instructionCount);
                             operandIdList.push(nextOperand);
 
                             operandNameList.push('Id ' + quantifierIndex);
@@ -573,8 +603,8 @@ function parseBinaryStream(binary) {
                             instructionString += createIdHtmlString(nextNextOperand, 'operand');
                             instructionString += ') ';
 
-                            idConsumers[nextOperand].push(instructionCount);
-                            idConsumers[nextNextOperand].push(instructionCount);
+                            addIdConsumer(nextOperand, instructionCount);
+                            addIdConsumer(nextNextOperand, instructionCount);
                             operandIdList.push(nextOperand);
                             operandIdList.push(nextNextOperand);
 
@@ -582,8 +612,8 @@ function parseBinaryStream(binary) {
                             operandNameList.push('Parent ' + quantifierIndex);
                         }
                         operandWordIndexList.push(operandOffset);
-                        operandWordIndexList.push(operandOffset + 1);
-                        operandOffset += 2;
+                        operandWordIndexList.push(operandOffset + firstWords);
+                        operandOffset += firstWords + 1;
                         quantifierIndex++;
                     }
                 } else {
@@ -1246,8 +1276,9 @@ function instructionHover(event) {
 
 function makeTooltip(key, value, index, resultType) {
     var keyClass = resultType ? 'tooltipResultKey' : 'tooltipKey';
-    return `<span class="tooltipIndex">[${index}]</span> <span class="${keyClass}">${key}</span>: <span class="tooltipValue">${
-        value}</span><br>`;
+    // value can be a literal string from the module, which must not be treated as HTML
+    return `<span class="tooltipIndex">[${index}]</span> <span class="${keyClass}">${escapeHtml(key)}</span>: <span class="tooltipValue">${
+        escapeHtml(value)}</span><br>`;
 }
 
 // Used to "highlight" node when hovering dag nodes
