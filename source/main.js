@@ -117,6 +117,8 @@ function parseBinaryStream(binary) {
     // displayDiv -> function -> label -> instructions
     var currentInstructionDiv = preFunctionDiv;
     var currentFunctionDiv = undefined;
+    // Instructions in each section div (pre-function section, function or block), shown on its bar
+    var sectionCounts = new Map();
 
     // How much each basic block will indent by
     var indentStack = [];
@@ -210,7 +212,12 @@ function parseBinaryStream(binary) {
                     currentFunction.start = instructionCount;
 
                     var newDiv = document.createElement('div');
-                    addCollapsibleWrapper(newDiv, displayDiv, 'function', instructionCount, 'Function ' + instructionCount);
+                    // OpName comes before the functions in the module, so the name is known here
+                    var functionName = 'Function ' + instructionCount;
+                    if (opNameMap.has(module[i + 2])) {
+                        functionName += ' <span class="functionName">%' + escapeHtml(opNameMap.get(module[i + 2])) + '</span>';
+                    }
+                    addCollapsibleWrapper(newDiv, displayDiv, 'function', instructionCount, functionName);
 
                     currentFunctionDiv = newDiv;
                     currentInstructionDiv = newDiv;
@@ -703,6 +710,11 @@ function parseBinaryStream(binary) {
             newDiv.id = `instruction_${instructionCount}`;
             newDiv.className = 'instruction';
             currentInstructionDiv.appendChild(newDiv);
+            sectionCounts.set(currentInstructionDiv, (sectionCounts.get(currentInstructionDiv) || 0) + 1);
+            if (currentFunctionDiv != undefined && currentInstructionDiv != currentFunctionDiv) {
+                // A block's instructions count for the function too
+                sectionCounts.set(currentFunctionDiv, (sectionCounts.get(currentFunctionDiv) || 0) + 1);
+            }
         }
 
         // Handles all decorations and names
@@ -835,6 +847,19 @@ function parseBinaryStream(binary) {
                 tagSpan.textContent = ` [${tag}]`;
                 labelDiv.prepend(tagSpan);
             }
+        }
+
+        // Show how many instructions each section (pre-function section, function or block) holds on its bar
+        // querySelectorAll is static, a live collection would re-walk the document after each change below
+        const sectionLabels = displayDiv.querySelectorAll('.label-toggle');
+        for (let i = 0; i < sectionLabels.length; i++) {
+            const label = sectionLabels[i];
+            // label -> collapsible-content wrapper -> section div
+            const count = sectionCounts.get(label.nextElementSibling.firstElementChild) || 0;
+            const countSpan = document.createElement('span');
+            countSpan.className = 'sectionCount';
+            countSpan.textContent = count + ((count == 1) ? ' instruction' : ' instructions');
+            label.appendChild(countSpan);
         }
 
         hideOffscreenSections(displayDiv.querySelectorAll('.label, .preFunction'));

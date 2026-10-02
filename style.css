@@ -277,6 +277,19 @@ a.id:hover, a.operation:hover {
     background: #2c2c2c;
 }
 
+.label-toggle .functionName {
+    font-weight: normal;
+    margin-left: 6px;
+}
+
+/* Right side of the bar, the title stays centered */
+.label-toggle .sectionCount {
+    float: right;
+    font-weight: normal;
+    color: #e8e8e8;
+    padding-right: 6px;
+}
+
 /* Hides content */
 .collapsible-content {
     max-height: 0px;
