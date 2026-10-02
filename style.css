@@ -192,6 +192,13 @@ a.id:hover, a.operation:hover {
     cursor: pointer;
 }
 
+/* Every use of the id under the mouse */
+.idHover {
+    background-color: #ffe08a;
+    outline: 1px solid #e0a800;
+    border-radius: 2px;
+}
+
 /* Override ID */
 .result {
     color : darkgreen;

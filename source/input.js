@@ -98,8 +98,8 @@ function idOnClick(event) {
     // find "idN" where "N" is the SPIR-V ID value
     // Can't use innerText due to using opName option
     for (let value of classList.values()) {
-        // make sure not to just grab "id" class
-        if (value.startsWith('id') && (value.length > 2)) {
+        // Only "id" followed by digits, not the "id" class or others like "idHover"
+        if (/^id\d+$/.test(value)) {
             id = parseInt(value.substring(2));
         }
     }
@@ -145,6 +145,48 @@ document.getElementById('disassembleDisplayDiv').addEventListener('click', funct
     }
 });
 
+// Hovering an id highlights every place that id appears, like an editor highlighting a symbol.
+// Each id element has an "id42" class. Only the elements near the visible part of the display are highlighted:
+// an OpTypeFloat can have 20k uses and searching all of a large module takes longer than a frame. Scrolling moves
+// the mouse off the id, which clears the highlight, so the rest is never seen.
+// (A single generated CSS rule for the hovered id was tried and is slower, any style sheet change restyles everything)
+var hoveredId = undefined;
+var hoveredIdElements = [];
+
+function clearHoveredId() {
+    for (const element of hoveredIdElements) {
+        element.classList.remove('idHover');
+    }
+    hoveredIdElements = [];
+    hoveredId = undefined;
+}
+
+// input.js loads before main.js, which defines displayDiv, so look the element up here
+const hoverDisplayDiv = document.getElementById('disassembleDisplayDiv');
+
+hoverDisplayDiv.addEventListener('mouseover', function(event) {
+    const target = event.target;
+    if (!target.classList.contains('id')) {
+        return;
+    }
+    const match = target.className.match(/\bid(\d+)\b/);
+    if (match == null || match[1] == hoveredId) {
+        return;
+    }
+    clearHoveredId();
+    hoveredId = match[1];
+    hoveredIdElements = elementsNearView('id' + hoveredId);
+    for (const element of hoveredIdElements) {
+        element.classList.add('idHover');
+    }
+});
+
+hoverDisplayDiv.addEventListener('mouseout', function(event) {
+    if (event.target.classList.contains('id')) {
+        clearHoveredId();
+    }
+});
+
 // Some settings are easier to reset than have stateful logic of inputs outside this file
 function resetSettings() {
     document.getElementById('opNames').checked = false;
@@ -157,6 +199,7 @@ function toggleDisassemblyInput(turnOn) {
         displayDiv.style.display = 'none';
         inputDiv.style.display = 'inline-block';
         resetSections();
+        clearHoveredId();
         displayDiv.innerHTML = '';
     } else {
         displayDiv.style.display = 'inline-block';

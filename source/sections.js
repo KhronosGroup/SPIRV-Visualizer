@@ -149,6 +149,40 @@ function hideOffscreenSections(sections) {
     requestIdle(makeSearchable);
 }
 
+// The elements with a class in the parts of displayDiv that are shown or about to be, for changes that only matter
+// on screen. Much faster than searching the whole display on a large module.
+// Instructions of a function that are outside its blocks (OpFunction, OpFunctionParameter, OpFunctionEnd) are not in
+// a hidden section and always included.
+function elementsNearView(className) {
+    const display = document.getElementById('disassembleDisplayDiv');
+    if (sectionObserver == undefined) {
+        return Array.from(display.getElementsByClassName(className));
+    }
+    const elements = [];
+    const add = function(collection) {
+        // Not push(...collection), a huge collection would overflow the call stack
+        for (let i = 0; i < collection.length; i++) {
+            elements.push(collection[i]);
+        }
+    };
+    for (const section of nearSections) {
+        add(section.getElementsByClassName(className));
+    }
+    // display -> collapsible-content wrapper -> function div -> instructions, collapsible wrappers of blocks
+    for (const wrapper of display.children) {
+        const functionDiv = wrapper.firstElementChild;
+        if (functionDiv == null || !functionDiv.classList.contains('function')) {
+            continue;
+        }
+        for (const child of functionDiv.children) {
+            if (child.classList.contains('instruction')) {
+                add(child.getElementsByClassName(className));
+            }
+        }
+    }
+    return elements;
+}
+
 // Needs to be called before scrolling to an instruction that might be in a hidden section
 function showInstructionSection(instructionDiv) {
     const section = instructionDiv.closest('.label, .preFunction');
