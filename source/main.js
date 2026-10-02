@@ -589,7 +589,8 @@ function parseBinaryStream(binary) {
                     operandOffset += width;
 
                 } else if ((kind == 'IdMemorySemantics') || (kind == 'IdScope')) {
-                    instructionString += ' ' + createIdHtmlString(operand, 'operand');
+                    // The class lets Insert Constants show the enum names instead of the number (see updateIdText)
+                    instructionString += ' ' + createIdHtmlString(operand, 'operand ' + (kind == 'IdScope' ? 'scope' : 'memorySemantics'));
                     addIdConsumer(operand, instructionCount);
                     operandIdList.push(operand);
                     operandNameList.push(operandName);
@@ -1148,6 +1149,12 @@ function updateIdText(useNames, useConstants, root) {
         let isConstant = false;
         if (useConstants && constantValues.has(id) && !element.classList.contains('result')) {
             text = String(constantValues.get(id));
+            // A constant used as a Scope or Memory Semantics operand reads better as the enum names than as "2 322"
+            if (element.classList.contains('scope')) {
+                text = enumValueText(spirv.Operands.get('Scope'), text);
+            } else if (element.classList.contains('memorySemantics')) {
+                text = enumValueText(spirv.Operands.get('MemorySemantics'), text);
+            }
             isConstant = true;
         } else if (useNames && opNameMap.has(id)) {
             text = '%' + opNameMap.get(id);
@@ -1217,6 +1224,36 @@ function updateNonSemantic(setId, operandDiv, enumerantName) {
         }
         operandDiv.innerText = bitEnumString;
     }
+}
+
+// The name(s) of a ValueEnum or BitEnum value, from a grammar operand kind
+// @param operandInfo spirv.Operands.get(kind)
+// @param valueText The value as displayed, a decimal integer string. Returned as is when it isn't one or doesn't match
+function enumValueText(operandInfo, valueText) {
+    const value = Number(valueText);
+    if (!Number.isInteger(value) || value < 0) {
+        return valueText;
+    }
+    if (operandInfo.category == 'ValueEnum') {
+        for (const enumerant of operandInfo.enumerants) {
+            if (enumerant.value == value) {
+                return enumerant.enumerant;
+            }
+        }
+    } else if (operandInfo.category == 'BitEnum') {
+        const names = [];
+        for (const enumerant of operandInfo.enumerants) {
+            const bit = parseInt(enumerant.value, 16);
+            // The zero enumerant (Relaxed, None) only when no bit is set
+            if ((bit != 0 && (value & bit) != 0) || (bit == 0 && value == 0)) {
+                names.push(enumerant.enumerant);
+            }
+        }
+        if (names.length > 0) {
+            return names.join(' | ');
+        }
+    }
+    return valueText;
 }
 
 // After constants are inserted, NonSemantic instructions can show the ValueEnum/BitEnum name for the constant value
