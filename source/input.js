@@ -191,6 +191,8 @@ hoverDisplayDiv.addEventListener('mouseout', function(event) {
 function resetSettings() {
     document.getElementById('opNames').checked = false;
     document.getElementById('insertConstants').checked = false;
+    document.getElementById('showSource').checked = false;
+    displayDiv.classList.remove('showSource');
     resetSearch();
 }
 
@@ -237,6 +239,8 @@ function settingsCheckboxClick(event) {
         useOpNames(checked);
     } else if (box == 'insertConstants') {
         insertConstants(checked);
+    } else if (box == 'showSource') {
+        showSource(checked);
     } else if (box == 'largerText') {
         // Doesn't effect the settings text size
         document.getElementById('moduleData').style.fontSize = (checked) ? 'medium' : 'small';

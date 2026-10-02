@@ -45,6 +45,10 @@
                         <input type="checkbox" id="insertConstants" name="insertConstants">
                         <label for="insertConstants">Insert Constants</label>
                     </div>
+                    <div id="showSourceDiv" title="Load a module first">
+                        <input type="checkbox" id="showSource" name="showSource" disabled>
+                        <label for="showSource">Show Source</label>
+                    </div>
                     <div id="searchDiv">
                         <input type="search" id="searchInput" placeholder="Search text, %id or [index]" title="Search the instructions, / to focus, Enter / Shift+Enter for the next / previous match" spellcheck="false">
                         <button id="searchPrev" class="customButton searchButton" title="Previous match (Shift+Enter)">&#9650;</button>
@@ -102,6 +106,7 @@
   <script src="source/spirv.js"></script>
   <script src="source/assembler.js"></script>
   <script src="source/sections.js"></script>
+  <script src="source/shadersource.js"></script>
   <script src="source/search.js"></script>
   <script src="source/stats.js"></script>
   <script src="source/dag.js"></script>

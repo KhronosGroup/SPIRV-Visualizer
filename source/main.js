@@ -46,6 +46,7 @@ function resetTracking() {
     constantValues = new Map();
     nonSemanticInstructions = new Map();
     spirv.ResultToExtImport = new Map();
+    resetShaderSource();
 }
 
 // @param binary ArrayBuffer of spirv module binary file
@@ -142,6 +143,10 @@ function parseBinaryStream(binary) {
         flushInstructions();
         currentInstructionDiv = div;
     }
+
+    // The source line range (shadersource.js sourceRange) the last source header was made for, and its file
+    var lastSourceRange = undefined;
+    var lastSourceFileId = undefined;
 
     // How much each basic block will indent by
     var indentStack = [];
@@ -251,6 +256,7 @@ function parseBinaryStream(binary) {
                     break;
                 case spirv.Enums.Op.OpFunctionEnd:
                     currentFunction.end = instructionCount;
+                    clearSourceRange();  // line info ends with the block
 
                     // Label has ended and need to add last instruction
                     setInstructionDiv(currentFunctionDiv);
@@ -258,6 +264,7 @@ function parseBinaryStream(binary) {
                 case spirv.Enums.Op.OpLabel:
                     currentBlock.start = instructionCount;
                     currentBlock.function = currentFunction.start;
+                    clearSourceRange();  // line info ends with the block
 
                     // The function's own instructions (OpFunction, parameters) go before this block's wrapper
                     flushInstructions();
@@ -272,6 +279,13 @@ function parseBinaryStream(binary) {
                     newDiv.parentNode.previousElementSibling.style.marginLeft = indentSize + 'px';
 
                     setInstructionDiv(newDiv);
+                    break;
+                case spirv.Enums.Op.OpLine:
+                    // Applies to this and the following instructions until OpNoLine, the next OpLine or the end of the block
+                    setSourceRange(module[i + 1], module[i + 2], module[i + 2]);
+                    break;
+                case spirv.Enums.Op.OpNoLine:
+                    sourceRange = undefined;
                     break;
                 case spirv.Enums.Op.OpBranch:
                 case spirv.Enums.Op.OpBranchConditional:
@@ -467,6 +481,15 @@ function parseBinaryStream(binary) {
                 } else if (kind == 'LiteralString') {
                     const literalWords = module.slice(i + operandOffset, i + instructionLength);
                     var literalString = spirv.getLiteralString(literalWords);
+                    // Strings and source text for the Show Source setting (shadersource.js)
+                    if (opcode == spirv.Enums.Op.OpString) {
+                        addSourceString(module[i + 1], literalString);
+                    } else if (opcode == spirv.Enums.Op.OpSource) {
+                        // OpSource Language Version File Text, Text is only there when File is
+                        addSourceFile(module[i + 3], sourceStrings.get(module[i + 3]), literalString);
+                    } else if (opcode == spirv.Enums.Op.OpSourceContinued) {
+                        addSourceFileContinued(literalString);
+                    }
                     // Source strings can be unhelpfully long, so hide by default
                     // If the OpString is too long it can also be unhelpfully long
                     const string_len_threshhold = 300;  // about 3 full lines
@@ -520,6 +543,11 @@ function parseBinaryStream(binary) {
                     const extOpname = (extInstructionInfo == undefined) ? operand : extInstructionInfo.opname;
                     // This will have the while loop use the extended grammar
                     extendedOperandInfo = extInstructionInfo;
+
+                    // Source text, line ranges, scopes, functions and variable names (shadersource.js)
+                    if (nonSemanitcType == ExtInstTypeNonSemanitcDebugInfo && extInstructionInfo != undefined) {
+                        recordDebugInstruction(extOpname, module, i, instructionLength);
+                    }
                     instructionString += ' ' + createLiteralHtmlString(extOpname);
                     operandNameList.push(operandName);
                     operandWordIndexList.push(operandOffset);
@@ -733,6 +761,16 @@ function parseBinaryStream(binary) {
                 }
             }
 
+            // The source lines this instruction came from, once per range (shown by the Show Source setting)
+            if (sourceRange != undefined && sourceRange !== lastSourceRange) {
+                lastSourceRange = sourceRange;
+                const html = sourceHeaderHtml(sourceRange.source, sourceRange.start, sourceRange.end, sourceRange.source != lastSourceFileId);
+                if (html != '') {
+                    pendingInstructionHtml.push(html);
+                    lastSourceFileId = sourceRange.source;
+                }
+            }
+
             // The instruction div, inserted with the rest of its section by flushInstructions()
             pendingInstructionHtml.push(`<div id="instruction_${instructionCount}" class="instruction">${instructionString}</div>`);
             instructionSections.push(currentInstructionDiv);
@@ -891,6 +929,9 @@ function parseBinaryStream(binary) {
         }
 
         hideOffscreenSections(displayDiv.querySelectorAll('.label, .preFunction'));
+
+        addFunctionSourceTags();
+        updateShowSourceSetting();
 
         // Click events are handled by a single delegated listener on displayDiv (see input.js)
     }

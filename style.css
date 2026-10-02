@@ -63,6 +63,7 @@ body {
 #largerTextDiv { grid-area: largerTextArea; }
 #opNamesDiv { grid-area: opNamesArea; }
 #insertConstantsDiv { grid-area: insertConstantsArea; }
+#showSourceDiv { grid-area: showSourceArea; }
 #searchDiv { grid-area: searchArea; }
 
 #settingsLeft {
@@ -71,9 +72,9 @@ body {
 
     display: grid;
     grid-template-areas:
-    'collapseAllDiv largerTextArea opNamesArea insertConstantsArea searchArea';
+    'collapseAllDiv largerTextArea opNamesArea insertConstantsArea showSourceArea searchArea';
     /* Size the settings to their text so the labels don't wrap, the search gets the rest */
-    grid-template-columns: repeat(4, max-content) 1fr;
+    grid-template-columns: repeat(5, max-content) 1fr;
     column-gap: 16px;
 }
 
@@ -197,6 +198,63 @@ a.id:hover, a.operation:hover {
     background-color: #ffe08a;
     outline: 1px solid #e0a800;
     border-radius: 2px;
+}
+
+/* A disabled setting looks disabled, the tooltip on its div says why */
+#showSource:disabled + label {
+    color: #999;
+    cursor: help;
+}
+
+/* Shader source lines above the instructions they produced (Show Source), hidden unless the setting is on */
+.sourceLine {
+    display: none;
+    margin: 6px 2px 2px 2px;
+    padding: 3px 8px;
+    background-color: #f4f4f4;
+    border-left: 3px solid #9a9a9a;
+    color: #333;
+    font-family: monospace;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.showSource .sourceLine {
+    display: block;
+}
+
+.sourceLineNumber {
+    display: inline-block;
+    min-width: 3.5em;
+    color: #999;
+    text-align: right;
+    margin-right: 10px;
+    user-select: none;
+}
+
+.sourceFile {
+    color: #666;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+/* Where the function is defined, on its bar (Show Source) */
+.functionSource {
+    display: none;
+    font-weight: normal;
+    margin-left: 10px;
+    color: #f4f4f4;
+}
+
+.showSource .functionSource {
+    display: inline;
+}
+
+.sourceInlined {
+    color: #777;
+    font-style: italic;
+    font-family: Arial, Helvetica, sans-serif;
+    white-space: normal;
 }
 
 /* Override ID */
@@ -385,4 +443,17 @@ a.id:hover, a.operation:hover {
     left: 45%;
     padding: 15px;
     border-radius: 10px;
+}
+.statsFiles {
+    max-height: 12em;
+    overflow-y: auto;
+    color: #555;
+}
+
+/* Long text in a stats row (compiler arguments) wraps instead of widening the table */
+.statsWrap {
+    display: inline-block;
+    max-width: 60vw;
+    white-space: normal;
+    word-break: break-word;
 }

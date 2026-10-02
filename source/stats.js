@@ -292,6 +292,24 @@ function renderStats(stats) {
             `${largestBlock.instructions.toLocaleString()} instructions, ${statsLink(largestBlock.index, 'Label ' + largestBlock.index)}`],
     ]);
 
+    // From NonSemantic.Shader.DebugInfo.100 (shadersource.js), only when the module has it
+    if (debugCompilationUnit != undefined || debugEntryPoint != undefined || sourceFiles.size > 0) {
+        html += statsHeading('Shader debug info');
+        const rows = [];
+        if (debugCompilationUnit != undefined) {
+            rows.push(['Language', escapeHtml(statsEnumName('SourceLanguage', debugCompilationUnit.language))]);
+        }
+        if (debugEntryPoint != undefined) {
+            rows.push(['Compiler', `<span class="statsWrap">${escapeHtml(debugEntryPoint.compiler || '')}</span>`]);
+            rows.push(['Arguments', `<span class="statsWrap">${escapeHtml(debugEntryPoint.arguments || '')}</span>`]);
+        }
+        if (sourceFiles.size > 0) {
+            const names = [...sourceFiles.values()].map(file => escapeHtml(file.name || '?') + (file.text ? '' : ' <span class="statsNote">(no text)</span>'));
+            rows.push(['Source files', `${sourceFiles.size}<div class="statsFiles">${names.join('<br>')}</div>`]);
+        }
+        html += statsKeyValues(rows);
+    }
+
     html += statsHeading('Functions');
     const functionRows = [...stats.functions].sort((a, b) => b.instructions - a.instructions).map(fn => [
         statsLink(fn.index, statsIdName(fn.id)), escapeHtml((stats.entryPointModels.get(fn.id) || []).join(', ')),
