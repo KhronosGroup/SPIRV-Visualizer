@@ -1111,6 +1111,7 @@ function updateIdText(useNames, useConstants) {
     if (useConstants) {
         updateNonSemanticConstants();
     }
+    searchTextChanged();
 }
 
 // @param toggle True to use, False to not

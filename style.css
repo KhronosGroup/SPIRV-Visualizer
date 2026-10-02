@@ -63,6 +63,7 @@ body {
 #largerTextDiv { grid-area: largerTextArea; }
 #opNamesDiv { grid-area: opNamesArea; }
 #insertConstantsDiv { grid-area: insertConstantsArea; }
+#searchDiv { grid-area: searchArea; }
 
 #settingsLeft {
     padding-left: 10px;
@@ -70,7 +71,44 @@ body {
 
     display: grid;
     grid-template-areas:
-    'collapseAllDiv largerTextArea opNamesArea insertConstantsArea';
+    'collapseAllDiv largerTextArea opNamesArea insertConstantsArea searchArea';
+    /* Size the settings to their text so the labels don't wrap, the search gets the rest */
+    grid-template-columns: repeat(4, max-content) 1fr;
+    column-gap: 16px;
+}
+
+#searchDiv {
+    white-space: nowrap;
+}
+
+#searchInput {
+    width: 230px;
+    padding: 2px 6px;
+    font-size: 13px;
+    border: 1px solid #999;
+    border-radius: 4px;
+}
+
+.searchButton {
+    padding: 2px 6px;
+    font-size: 10px;
+}
+
+#searchStatus {
+    display: inline-block;
+    min-width: 70px;
+    margin-left: 4px;
+    font-size: 12px;
+    color: #ddd;
+}
+
+/* !important because the dag highlighting sets the background color inline */
+.searchMatch {
+    background-color: #fff3b0 !important;
+}
+
+.searchMatch.searchCurrent {
+    background-color: #ffd54a !important;
 }
 
 #settingsRight {

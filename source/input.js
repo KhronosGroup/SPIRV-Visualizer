@@ -149,6 +149,7 @@ document.getElementById('disassembleDisplayDiv').addEventListener('click', funct
 function resetSettings() {
     document.getElementById('opNames').checked = false;
     document.getElementById('insertConstants').checked = false;
+    resetSearch();
 }
 
 function toggleDisassemblyInput(turnOn) {
@@ -215,6 +216,7 @@ $('#expandAll').on('click', function() {
 $('#clearAll').on('click', function() {
     toggleDisassemblyInput(true);
     clearDagDiv();
+    resetSearch();
 });
 
 $('#copyToClipboard').on('click', function() {

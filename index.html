@@ -45,6 +45,12 @@
                         <input type="checkbox" id="insertConstants" name="insertConstants">
                         <label for="insertConstants">Insert Constants</label>
                     </div>
+                    <div id="searchDiv">
+                        <input type="search" id="searchInput" placeholder="Search text, %id or [index]" title="Search the instructions, / to focus, Enter / Shift+Enter for the next / previous match" spellcheck="false">
+                        <button id="searchPrev" class="customButton searchButton" title="Previous match (Shift+Enter)">&#9650;</button>
+                        <button id="searchNext" class="customButton searchButton" title="Next match (Enter)">&#9660;</button>
+                        <span id="searchStatus"></span>
+                    </div>
                 </div>
                 <div id="settingsRight" class="col">
                     <button id="copyToClipboard" class="customButton">Copy To Clipboard</button>
@@ -94,6 +100,7 @@
   <script src="source/spirv.js"></script>
   <script src="source/assembler.js"></script>
   <script src="source/sections.js"></script>
+  <script src="source/search.js"></script>
   <script src="source/dag.js"></script>
   <script src="source/main.js"></script>
   </body>
