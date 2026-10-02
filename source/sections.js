@@ -157,6 +157,17 @@ function showInstructionSection(instructionDiv) {
     }
 }
 
+// Scrolls the disassembly to an instruction, uncollapsing and showing its section first
+function scrollToInstruction(index) {
+    const instructionDiv = document.getElementById('instruction_' + index);
+    if (instructionDiv == null) {
+        return;
+    }
+    uncollapseInstruction(instructionDiv);
+    showInstructionSection(instructionDiv);
+    instructionDiv.scrollIntoView({block: 'center'});
+}
+
 function uncollapseInstruction(instructionDiv) {
     var labelDiv = instructionDiv.parentNode.parentNode.previousSibling;
     var inputDiv = labelDiv.previousSibling;

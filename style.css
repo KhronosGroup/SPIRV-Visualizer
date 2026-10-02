@@ -209,6 +209,65 @@ a.id:hover, a.operation:hover {
     color : darkmagenta;
 }
 
+/* Stats page in the right pane */
+#statsDiv h3 {
+    margin: 14px 0 4px 0;
+    font-size: 1.15em;
+    border-bottom: 1px solid #ccc;
+}
+
+#statsDiv h3:first-child {
+    margin-top: 4px;
+}
+
+.statsTable {
+    border-collapse: collapse;
+}
+
+.statsTable th {
+    text-align: left;
+    border-bottom: 1px solid #ccc;
+}
+
+.statsTable th, .statsTable td {
+    padding: 1px 12px 1px 0;
+    white-space: nowrap;
+    vertical-align: top;
+}
+
+.statsKey {
+    color: #555;
+}
+
+.statsNum {
+    text-align: right;
+}
+
+.statsBarCell {
+    width: 110px;
+}
+
+.statsBar {
+    display: inline-block;
+    height: 0.75em;
+    background: #5c7cfa;
+    vertical-align: middle;
+}
+
+.statsNote {
+    color: #666;
+}
+
+.statsLink {
+    color: darkgreen;
+    cursor: pointer;
+}
+
+.statsLink:hover {
+    color: blue;
+    font-weight: bold;
+}
+
 /* Follows the mouse over a dag node */
 .tooltip {
     position: absolute;

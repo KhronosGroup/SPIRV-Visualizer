@@ -33,6 +33,8 @@ var debugStringMap = new Map();
 var constantValues = new Map();
 // Mapping of what OpExtInst are non-semantic
 var nonSemanticInstructions = new Map();
+// The words of the loaded module, for anything that needs operands after parsing (stats.js)
+var moduleWords = undefined;
 
 // Ensures consecutive loads are cleared
 function resetTracking() {
@@ -60,6 +62,7 @@ function parseBinaryStream(binary) {
     // translate to Uint32 array to match each SPIR-V dword
     assert(binary.byteLength % 4 == 0, 'File is not 4 byte (32 bit) aligned, are you sure this is a binary SPIR-V file?');
     const module = new Uint32Array(binary);
+    moduleWords = module;
 
     assert(module.length >= 5, 'module less than 5 dwords which is the size of the header');
 
@@ -911,8 +914,9 @@ const instructionHighlightOn = '#c9cdff';     // when in use in dag
 const instructionHighlightHover = '#9595ff';  // when in use and hovered
 
 function clearDagData() {
-    // While here, if debug string was used, clear it as well
+    // While here, if debug string or stats were shown, clear them as well
     document.getElementById('debugStringDiv').innerText = '';
+    document.getElementById('statsDiv').innerHTML = '';
 
     for (let i = 0; i < liveDagData.length; i++) {
         let instructionFn = $('#instruction_' + liveDagData[i].id);
@@ -1252,10 +1256,7 @@ function dagNodeOnClick(node) {
         return;  // placeholder node
     }
     // Snaps to instruction text on click
-    var instructionDiv = document.getElementById('instruction_' + node.id);
-    uncollapseInstruction(instructionDiv);
-    showInstructionSection(instructionDiv);
-    instructionDiv.scrollIntoView({block: 'center'});
+    scrollToInstruction(node.id);
 }
 
 // @param nodeGroup The <g> of the dag node

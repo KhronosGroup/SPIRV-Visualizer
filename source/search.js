@@ -99,11 +99,9 @@ function showSearchCurrent() {
     if (searchCurrent < 0) {
         return;
     }
-    const instructionDiv = document.getElementById('instruction_' + searchMatches[searchCurrent]);
-    instructionDiv.classList.add('searchCurrent');
-    uncollapseInstruction(instructionDiv);
-    showInstructionSection(instructionDiv);
-    instructionDiv.scrollIntoView({block: 'center'});
+    const index = searchMatches[searchCurrent];
+    document.getElementById('instruction_' + index).classList.add('searchCurrent');
+    scrollToInstruction(index);
 }
 
 // Finds the instructions matching the search box:
