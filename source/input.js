@@ -241,9 +241,6 @@ function settingsCheckboxClick(event) {
         insertConstants(checked);
     } else if (box == 'showSource') {
         showSource(checked);
-    } else if (box == 'largerText') {
-        // Doesn't effect the settings text size
-        document.getElementById('moduleData').style.fontSize = (checked) ? 'medium' : 'small';
     }
 }
 

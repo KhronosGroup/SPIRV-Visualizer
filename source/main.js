@@ -1518,14 +1518,17 @@ function drawDag(dagData) {
     // Grab each time incase window is resized
     const rect = document.getElementById('dagDiv').getBoundingClientRect();
 
-    const newLineSize = 17.0;  // little padding
+    // The dag text is the same size as the instructions (#moduleData in style.css) and the nodes are sized from it
+    const svgStyle = getComputedStyle(document.getElementById('dagSvg'));
+    const fontSize = parseFloat(svgStyle.fontSize);
+    const newLineSize = fontSize * 1.3;  // little padding
     const maxLines = 5;
 
     // Since 99% of instructions are capped at 5 lines, it is easier to make height set to 5 and
     // anything with more than 5 lines can be "..." and show in a tool tip
     const rectHeight = newLineSize * (maxLines + 0.5);  // max lines and half a line to pad
     const nodeHeight = rectHeight * 1.3;                // 1.0 == no gap, 2.0 == full rect size for gap
-    const nodeWidth = 275;                              // shuold be able to fix everything
+    const nodeWidth = fontSize * 21;                    // fits "%123 = OpFunctionCall", longer lines are shortened
     const rectWidth = nodeWidth * .85;                  // 1.0 == no gap, 0.5 == full rect size for gap
 
     // 93% gives enough padding to remove the scroll bar
@@ -1553,6 +1556,8 @@ function drawDag(dagData) {
         'rectHeight': rectHeight,
         'lineHeight': newLineSize,
         'maxLines': maxLines,
+        'fontSize': fontSize,
+        'fontFamily': svgStyle.fontFamily,
         'minWidth': minWidth,
         'minHeight': minHeight,
         // Small graphs are scaled up to fill the space, but never beyond the scale a chain of 5 nodes gets

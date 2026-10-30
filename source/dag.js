@@ -182,9 +182,30 @@ function dagEdgePath(points) {
     return path;
 }
 
+// Shortens text wider than maxWidth by cutting out the middle, so both "%name" and "= OpName" of a long line stay.
+// The full text is in the node's tooltip
+function fitDagText(measure, text, maxWidth) {
+    if (measure.measureText(text).width <= maxWidth) {
+        return text;
+    }
+    const shortened = (keep) => text.slice(0, Math.ceil(keep / 2)) + '…' + text.slice(text.length - Math.floor(keep / 2));
+    // Binary search for the most characters that still fit
+    let low = 0;
+    let high = text.length - 1;
+    while (low < high) {
+        const keep = Math.ceil((low + high) / 2);
+        if (measure.measureText(shortened(keep)).width <= maxWidth) {
+            low = keep;
+        } else {
+            high = keep - 1;
+        }
+    }
+    return shortened(low);
+}
+
 // Draws a layout from layoutDag() into an <svg>, replacing what was there
-// @param options {nodeWidth, nodeHeight, rectWidth, rectHeight, lineHeight, maxLines, minWidth, minHeight, maxScale,
-//                 color(node), textColor(node), onClick(node, g), onEnter(node, g), onLeave(node, g), onMove(event)}
+// @param options {nodeWidth, nodeHeight, rectWidth, rectHeight, lineHeight, maxLines, fontSize, fontFamily, minWidth, minHeight,
+//                 maxScale, color(node), textColor(node), onClick(node, g), onEnter(node, g), onLeave(node, g), onMove(event)}
 //        color/textColor return CSS colors for the node, the on* callbacks get the layout node and its <g>
 function drawDagSvg(svg, layout, options) {
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -245,6 +266,11 @@ function drawDagSvg(svg, layout, options) {
         }));
     }
 
+    // Text is measured on a canvas (no layout) to shorten lines wider than the rect, with a little padding on each side
+    const measure = document.createElement('canvas').getContext('2d');
+    measure.font = `bold ${options.fontSize}px ${options.fontFamily}`;
+    const maxTextWidth = options.rectWidth - options.fontSize;
+
     // Nodes, drawn after the edges so they are on top
     const nodeGroup = createElement('g', {});
     svg.appendChild(nodeGroup);
@@ -262,6 +288,7 @@ function drawDagSvg(svg, layout, options) {
         // One line per text entry, "..." on the last line if there are more lines than fit
         const text = createElement('text', {
             'font-weight': 'bold',
+            'font-size': options.fontSize,
             'text-anchor': 'middle',
             'y': -(options.rectHeight / 2),  // puts text aligned with top of rect
             'fill': options.textColor(node),
@@ -270,7 +297,8 @@ function drawDagSvg(svg, layout, options) {
         const shownLines = Math.min(lines.length, options.maxLines);
         for (let i = 0; i < shownLines; i++) {
             const tspan = createElement('tspan', {'x': 0, 'dy': options.lineHeight});
-            tspan.textContent = (i == options.maxLines - 1 && lines.length > options.maxLines) ? '...' : lines[i];
+            tspan.textContent =
+                (i == options.maxLines - 1 && lines.length > options.maxLines) ? '...' : fitDagText(measure, lines[i], maxTextWidth);
             text.appendChild(tspan);
         }
         g.appendChild(text);
