@@ -676,6 +676,20 @@ function parseBinaryStream(binary) {
                             operandNameList.push('Variable ' + quantifierIndex);
                             operandNameList.push('Parent ' + quantifierIndex);
                         }
+                        if (kind == 'PairIdRefIdRef' && opcode != spirv.Enums.Op.OpPhi) {
+                            // DebugTypeEnum "Value, Name, Value, Name, ..." in the debug info extended instruction sets.
+                            // Printed like spirv-dis does, so Copy To Clipboard needs no special case for it
+                            instructionString += ' ' + createIdHtmlString(nextOperand, 'operand');
+                            instructionString += ' ' + createIdHtmlString(nextNextOperand, 'operand');
+
+                            addIdConsumer(nextOperand, instructionCount);
+                            addIdConsumer(nextNextOperand, instructionCount);
+                            operandIdList.push(nextOperand);
+                            operandIdList.push(nextNextOperand);
+
+                            operandNameList.push('Value ' + quantifierIndex);
+                            operandNameList.push('Name ' + quantifierIndex);
+                        }
                         operandWordIndexList.push(operandOffset);
                         operandWordIndexList.push(operandOffset + firstWords);
                         operandOffset += firstWords + 1;
