@@ -289,19 +289,14 @@ document.getElementById('copyToClipboard').addEventListener('click', function() 
         // strip the [123] number from the front
         const instruction_text = collapsedText(instruction_div);
         let offset = instruction_text.indexOf(']') + 3;
-        let opcode = (instruction_div.childElementCount > 2) ? collapsedText(instruction_div.children[1]) : '';
+        const opcode = instructionMap.get(i).opcode;
 
         if (debugStringMap.has(i)) {
             clipboard += instruction_text.substr(offset).replace("click to view", "\"" + debugStringMap.get(i) + "\"\n");
-        } else if (opcode == 'OpSwitch' || opcode == 'OpPhi' || opcode == 'OpGroupMemberDecorate') {
-            // The HTML will look like
-            //      <a/> " (Case " <a/> " : " <a/> ")"
-            // So can rejoin by collecting all the children
-            for (let i = 1; i < instruction_div.childElementCount; i++) {
-                if (i != 1) clipboard += ' ';
-                clipboard += collapsedText(instruction_div.children[i]);
-            }
-            clipboard += '\n';
+        } else if (opcode == spirv.Enums.Op.OpSwitch || opcode == spirv.Enums.Op.OpPhi ||
+                   opcode == spirv.Enums.Op.OpGroupMemberDecorate) {
+            // The operand pairs are shown as "(Case 1 : %a)", "(%a : %b)" or "(%a : 1)", drop the decoration
+            clipboard += instruction_text.substr(offset).replace(/\(Case |[():]/g, '').replace(/ +/g, ' ').trim() + '\n';
         } else {
             // normal case
             clipboard += instruction_text.substr(offset) + '\n';
