@@ -405,11 +405,6 @@ function parseBinaryStream(binary) {
                     // makes assumption any parametarized operands are at end of instruction
                 } else if (extendedOperandInfo) {
                     operandInfo = extendedOperandInfo.operands[extendedOperandIndex];
-                    // Hack until NonSemantic.Shader.DebugInfo.102 header are updated
-                    https://github.com/KhronosGroup/SPIRV-Registry/pull/447
-                    if (!operandInfo && nonSemanticInstructions.has(instructionCount)) {
-                        operandInfo = {kind: 'IdRef', name: 'Extra Operand'};
-                    }
                     extendedOperandIndex++;
                 } else if (parameterOperandInfo) {
                     operandInfo = parameterOperandInfo[parameterOperandIndex];
