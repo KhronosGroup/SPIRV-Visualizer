@@ -848,13 +848,35 @@ function parseBinaryStream(binary) {
                     constantValues.set(module[i + 2], (opcode == spirv.Enums.Op.OpSpecConstantDataKHR) ? `spec(${text})` : text);
                 }
                 break;
+            case spirv.Enums.Op.OpConstantComposite:
+            case spirv.Enums.Op.OpSpecConstantComposite: {
+                const text = compositeValueText(module, i, instructionLength, false);
+                constantValues.set(module[i + 2], (opcode == spirv.Enums.Op.OpSpecConstantComposite) ? `spec(${text})` : text);
+                break;
+            }
+            case spirv.Enums.Op.OpCompositeConstruct: {
+                // Not a constant instruction, but with only constant constituents it reads the same as one (ex. the
+                // message operand of OpAbortKHR). Needs all of them known, or it would look constant when it isn't
+                const text = compositeValueText(module, i, instructionLength, true);
+                if (text != undefined) {
+                    constantValues.set(module[i + 2], text);
+                }
+                break;
+            }
+            case spirv.Enums.Op.OpString: {
+                // A format string (ex. DebugPrintf) reads better than the id of the OpString
+                const text = spirv.getLiteralString(module.slice(i + 2, i + instructionLength));
+                const maxLength = 60;
+                constantValues.set(
+                    module[i + 1],
+                    JSON.stringify(text.length > maxLength ? text.substring(0, maxLength) + '\u2026' : text));
+                break;
+            }
             // value was found already above in LiteralContextDependentNumber check
             case spirv.Enums.Op.OpSpecConstant:
             case spirv.Enums.Op.OpConstant:
             // not supported
-            case spirv.Enums.Op.OpConstantComposite:
             case spirv.Enums.Op.OpConstantSampler:
-            case spirv.Enums.Op.OpSpecConstantComposite:
             case spirv.Enums.Op.OpSpecConstantOp:
             case spirv.Enums.Op.OpConstantCompositeContinuedINTEL:
             case spirv.Enums.Op.OpSpecConstantCompositeContinuedINTEL:
@@ -1264,6 +1286,32 @@ onSectionMaterialized = function(section) {
         updateIdText(useNames, useConstants, section);
     }
 };
+
+// The value of an OpConstantComposite / OpSpecConstantComposite / OpCompositeConstruct as "{a, b, c}". Constituents
+// are always before the instruction using them, so their values are already known.
+// @param i Word offset of the instruction in the module
+// @param requireAll Return undefined unless every constituent is a known constant, otherwise unknown ones show as %N
+function compositeValueText(module, i, instructionLength, requireAll) {
+    const maxShown = 8;
+    const first = 3;  // after the word count/opcode, result type and result
+    const total = instructionLength - first;
+    const shown = [];
+    for (let w = 0; w < total; w++) {
+        const id = module[i + first + w];
+        if (!constantValues.has(id)) {
+            if (requireAll) {
+                return undefined;
+            }
+            if (w < maxShown) {
+                shown.push('%' + id);
+            }
+        } else if (w < maxShown) {
+            shown.push(String(constantValues.get(id)));
+        }
+    }
+    const more = (total > maxShown) ? `, \u2026 (${total} total)` : '';
+    return '{' + shown.join(', ') + more + '}';
+}
 
 // @param toggle True to use, False to not
 function useOpNames(toggle) {
