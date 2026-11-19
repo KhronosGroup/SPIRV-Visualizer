@@ -33,6 +33,8 @@ var debugStringMap = new Map();
 var constantValues = new Map();
 // Mapping of what OpExtInst are non-semantic
 var nonSemanticInstructions = new Map();
+// Ids decorated with UTFEncodedKHR, constant data of these types is shown as a string
+var utfEncodedIds = new Set();
 // The words of the loaded module, for anything that needs operands after parsing (stats.js)
 var moduleWords = undefined;
 
@@ -45,6 +47,7 @@ function resetTracking() {
     debugStringMap = new Map();
     constantValues = new Map();
     nonSemanticInstructions = new Map();
+    utfEncodedIds = new Set();
     spirv.ResultToExtImport = new Map();
     resetShaderSource();
 }
@@ -807,6 +810,11 @@ function parseBinaryStream(binary) {
             opNameMap.set(module[i + 1], name);
         }
 
+        // Decorations come before the constants using the type, so this is known by the time OpConstantDataKHR is seen
+        if (opcode == spirv.Enums.Op.OpDecorate && module[i + 2] == spirv.Enums.Decoration.UTFEncodedKHR) {
+            utfEncodedIds.add(module[i + 1]);
+        }
+
         // Take Constant-Creation class opcodes and save const value to be displayed
         switch (opcode) {
             case spirv.Enums.Op.OpConstantTrue:
@@ -823,6 +831,22 @@ function parseBinaryStream(binary) {
                 break;
             case spirv.Enums.Op.OpSpecConstantFalse:
                 constantValues.set(module[i + 2], 'spec(False)');
+                break;
+            case spirv.Enums.Op.OpConstantDataKHR:
+            case spirv.Enums.Op.OpSpecConstantDataKHR:
+                if (utfEncodedIds.has(module[i + 1])) {
+                    // Data is packed little-endian, 4 bytes per word, the string is padded with 0 to fill the array
+                    const bytes = new Uint8Array((instructionLength - 3) * 4);
+                    for (let w = 3; w < instructionLength; w++) {
+                        new DataView(bytes.buffer).setUint32((w - 3) * 4, module[i + w], true);
+                    }
+                    let end = bytes.length;
+                    while (end > 0 && bytes[end - 1] == 0) {
+                        end--;
+                    }
+                    const text = JSON.stringify(utf8Decoder.decode(bytes.subarray(0, end)));
+                    constantValues.set(module[i + 2], (opcode == spirv.Enums.Op.OpSpecConstantDataKHR) ? `spec(${text})` : text);
+                }
                 break;
             // value was found already above in LiteralContextDependentNumber check
             case spirv.Enums.Op.OpSpecConstant:
